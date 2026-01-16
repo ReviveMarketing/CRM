@@ -11,8 +11,8 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -70,11 +70,26 @@
             transition: all 0.3s;
         }
         .btn-future:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(37, 99, 235, 0.5); }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+        }
     </style>
 </head>
 <body>
 
 <div id="app" class="flex h-screen overflow-hidden">
+    
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-overlay">
+        <div class="text-center">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-2"></i>
+            <p class="font-bold text-gray-600">Conectando ao Sistema...</p>
+        </div>
+    </div>
 
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-lg">
         <div class="p-6 flex items-center gap-3">
@@ -229,7 +244,10 @@
                 <div class="glass-panel p-6 h-full flex flex-col">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-bold text-xl">Mapa de Calor (Geolocalização)</h3>
-                        <p class="text-sm text-gray-500">Mostrando localização aproximada por Cidade/Estado</p>
+                        <div class="flex items-center gap-4 text-sm">
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Fechados</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span> Em Andamento</span>
+                        </div>
                     </div>
                     <div id="mapContainer" class="flex-1 shadow-inner border border-gray-300"></div>
                 </div>
@@ -352,21 +370,20 @@
     </div>
 </div>
 
-<script>
-    // --- CONFIGURE SUAS CHAVES DO FIREBASE AQUI ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyDOC-SUA-CHAVE-AQUI",
-        authDomain: "revivecrm.firebaseapp.com",
-        projectId: "revivecrm",
-        storageBucket: "revivecrm.appspot.com",
-        messagingSenderId: "123",
-        appId: "1:123:web:123"
-    };
+<!-- Módulos Firebase e Aplicação -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Configuração automática do ambiente
+    const firebaseConfig = JSON.parse(__firebase_config);
+    const appId = __app_id || 'default-app';
     
-    try {
-        firebase.initializeApp(firebaseConfig);
-    } catch(e) { console.error("Firebase Error", e); }
-    const db = firebase.firestore();
+    // Inicialização
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
     const { createApp } = Vue;
 
@@ -374,6 +391,7 @@
         data() {
             return {
                 view: 'dashboard',
+                loading: true,
                 searchQuery: '',
                 showModal: false,
                 editingLead: null,
@@ -384,13 +402,13 @@
                 form: {
                     id: null, nome: '', telefone: '', beneficio: '', condicao: '',
                     cidade: '', estado: '', obs: '', consultor: '',
-                    origem: 'Meta', campanha: '', // Novos campos
+                    origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
                     etapa: 'Primeiro Contato', msgCoordenador: ''
                 },
                 charts: {},
                 mapInstance: null,
-                cityCache: {} // Cache para não sobrecarregar API de mapas
+                cityCache: {}
             }
         },
         computed: {
@@ -428,22 +446,44 @@
             }
         },
         methods: {
-            changeView(newView) {
+            async changeView(newView) {
                 this.view = newView;
-                this.$nextTick(() => {
-                    if(newView === 'dashboard') this.updateCharts();
-                    if(newView === 'mapa') this.initMap();
-                });
+                await this.$nextTick();
+                if(newView === 'dashboard') this.updateCharts();
+                if(newView === 'mapa') this.initMap();
             },
-            init() {
-                const saved = localStorage.getItem('revive_consultores');
-                if(saved) this.listaConsultores = JSON.parse(saved);
+            
+            async initFirebase() {
+                try {
+                    // Autenticação Obrigatória
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                         await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                         await signInAnonymously(auth);
+                    }
+                    
+                    // Listener do Banco
+                    const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
+                    
+                    onSnapshot(leadsRef, (snapshot) => {
+                        this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                        this.loading = false;
+                        if(this.view === 'dashboard') this.updateCharts();
+                        // Se mapa estiver aberto, atualiza ele também
+                        if(this.view === 'mapa') this.initMap();
+                    }, (error) => {
+                        console.error("Erro Firestore:", error);
+                        this.loading = false;
+                        alert("Erro de conexão com o banco de dados.");
+                    });
 
-                db.collection('leads').onSnapshot(snapshot => {
-                    this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                    if(this.view === 'dashboard') this.updateCharts();
-                });
+                } catch (error) {
+                    console.error("Erro Auth:", error);
+                    this.loading = false;
+                }
             },
+
+            // --- Lógica de Negócio ---
             getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
             isIncomplete(lead) { return lead.telefone && !lead.nome; },
             cleanPhone(phone) { return phone ? phone.replace(/\D/g,'') : ''; },
@@ -451,18 +491,18 @@
             
             // --- Map Logic (Leaflet) ---
             async initMap() {
+                if(!document.getElementById('mapContainer')) return;
+                
                 if (this.mapInstance) {
-                    this.mapInstance.remove(); // Limpa mapa anterior se existir
+                    this.mapInstance.remove();
                 }
                 
-                // Centraliza no Brasil
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(this.mapInstance);
 
-                // Agrupar leads por cidade para não chamar API demais
                 const cityGroups = {};
                 this.leads.forEach(lead => {
                     if(lead.cidade && lead.estado) {
@@ -472,36 +512,55 @@
                     }
                 });
 
-                // Buscar coordenadas e plotar
-                for (const [location, leads] of Object.entries(cityGroups)) {
+                for (const [location, leadsInCity] of Object.entries(cityGroups)) {
                     let coords = this.cityCache[location];
 
                     if (!coords) {
-                        // Busca na API Nominatim (OpenStreetMap)
                         try {
                             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}`);
                             const data = await response.json();
                             if(data && data.length > 0) {
-                                coords = [data[0].lat, data[0].lon];
-                                this.cityCache[location] = coords; // Salva no cache
+                                coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                                this.cityCache[location] = coords;
                             }
                         } catch(e) { console.error("Erro mapa", e); }
+                        await new Promise(r => setTimeout(r, 700));
                     }
 
                     if (coords) {
-                        const marker = L.marker(coords).addTo(this.mapInstance);
-                        let popupContent = `<b>${location}</b><br>Total: ${leads.length} leads<br>`;
-                        leads.forEach(l => {
-                            popupContent += `<span style="font-size:10px; color:blue">${l.nome || 'Sem nome'} (${l.etapa})</span><br>`;
+                        leadsInCity.forEach(lead => {
+                            const isClosed = lead.etapa === 'Recebido (Fechado)';
+                            const color = isClosed ? '#22C55E' : '#F59E0B'; 
+                            const statusLabel = isClosed ? 'FECHADO' : 'EM ANDAMENTO';
+
+                            const jitterFactor = 0.015;
+                            const lat = coords[0] + (Math.random() - 0.5) * jitterFactor;
+                            const lon = coords[1] + (Math.random() - 0.5) * jitterFactor;
+
+                            const marker = L.circleMarker([lat, lon], {
+                                radius: 6,
+                                fillColor: color,
+                                color: '#fff',
+                                weight: 1,
+                                opacity: 1,
+                                fillOpacity: 0.9
+                            }).addTo(this.mapInstance);
+
+                            marker.bindPopup(`
+                                <div class="text-xs">
+                                    <strong class="text-sm block mb-1">${lead.nome || 'Sem Nome'}</strong>
+                                    <span style="color:${color}; font-weight:bold">${statusLabel}</span><br>
+                                    ${lead.cidade} - ${lead.estado}<br>
+                                    <span class="text-gray-500">${lead.origem || 'Origem N/A'}</span>
+                                </div>
+                            `);
                         });
-                        marker.bindPopup(popupContent);
                     }
                 }
             },
 
             // --- Charts ---
             updateCharts() {
-                // Origem Chart
                 const ctxOrigem = document.getElementById('chartOrigem');
                 if(ctxOrigem) {
                     if(this.charts.origem) this.charts.origem.destroy();
@@ -524,7 +583,6 @@
                     });
                 }
 
-                // Etapas Chart (Barra Horizontal)
                 const ctxEtapas = document.getElementById('chartEtapas');
                 if(ctxEtapas) {
                     if(this.charts.etapas) this.charts.etapas.destroy();
@@ -532,7 +590,7 @@
                     this.charts.etapas = new Chart(ctxEtapas, {
                         type: 'bar',
                         data: {
-                            labels: this.etapas.map(e => e.split(' ')[0]), // Abrevia label
+                            labels: this.etapas.map(e => e.split(' ')[0]),
                             datasets: [{ label: 'Leads', data: data, backgroundColor: '#2563EB', borderRadius: 5 }]
                         },
                         options: { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
@@ -546,16 +604,24 @@
                 evt.dataTransfer.effectAllowed = 'move';
                 evt.dataTransfer.setData('leadId', lead.id);
             },
-            onDrop(evt, novaEtapa) {
+            async onDrop(evt, novaEtapa) {
                 const leadId = evt.dataTransfer.getData('leadId');
                 const lead = this.leads.find(l => l.id === leadId);
+                
                 if (novaEtapa === 'Negociação' && !lead.nome) {
                     alert("🚫 Preencha o NOME antes de negociar.");
                     return;
                 }
-                db.collection('leads').doc(leadId).update({ etapa: novaEtapa });
-                if (novaEtapa === 'Recebido (Fechado)') {
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+
+                try {
+                    const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
+                    await updateDoc(leadRef, { etapa: novaEtapa });
+                    
+                    if (novaEtapa === 'Recebido (Fechado)') {
+                        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    }
+                } catch(e) {
+                    console.error("Erro ao mover card:", e);
                 }
             },
 
@@ -576,17 +642,35 @@
                 this.editingLead = true;
                 this.showModal = true;
             },
-            saveLead() {
+            async saveLead() {
                 const data = { ...this.form };
                 delete data.id;
-                if (this.editingLead) db.collection('leads').doc(this.form.id).update(data);
-                else db.collection('leads').add({ ...data, dataCriacao: new Date() });
-                this.closeModal();
-            },
-            deleteLead() {
-                if(confirm('Excluir lead?')) {
-                    db.collection('leads').doc(this.form.id).delete();
+                
+                try {
+                    const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
+
+                    if (this.editingLead) {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
+                        await updateDoc(docRef, data);
+                    } else {
+                        data.dataCriacao = new Date().toISOString();
+                        await addDoc(leadsRef, data);
+                    }
                     this.closeModal();
+                } catch(e) {
+                    console.error("Erro ao salvar:", e);
+                    alert("Erro ao salvar dados.");
+                }
+            },
+            async deleteLead() {
+                if(confirm('Excluir lead?')) {
+                    try {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
+                        await deleteDoc(docRef);
+                        this.closeModal();
+                    } catch(e) {
+                        console.error("Erro ao excluir:", e);
+                    }
                 }
             },
             closeModal() { this.showModal = false; },
@@ -602,7 +686,14 @@
                 localStorage.setItem('revive_consultores', JSON.stringify(this.listaConsultores));
             }
         },
-        mounted() { this.init(); }
+        mounted() {
+            // Inicializa Firebase no mounted
+            this.initFirebase();
+            
+            // Carrega consultores locais
+            const saved = localStorage.getItem('revive_consultores');
+            if(saved) this.listaConsultores = JSON.parse(saved);
+        }
     }).mount('#app');
 </script>
 </body>
