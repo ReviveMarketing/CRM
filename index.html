@@ -53,10 +53,11 @@
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        /* Mapa Real */
+        /* Mapa Real - CORREÇÃO DE TAMANHO */
         #mapContainer {
-            height: 500px;
             width: 100%;
+            height: 100%; /* Ocupa tudo do pai */
+            min-height: 600px; /* Garante altura mínima */
             border-radius: 12px;
             z-index: 10;
         }
@@ -71,17 +72,14 @@
         }
         .btn-future:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(37, 99, 235, 0.5); }
         
-        /* Loading Overlay */
-        .loading-overlay {
+        /* Loading & Login Overlay */
+        .fullscreen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.98); z-index: 9999;
-            display: flex; justify-content: center; align-items: center;
+            background: #F3F4F6; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 0.5s ease;
         }
-        .loading-hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
+        .hidden-overlay { opacity: 0; pointer-events: none; }
 
         /* Status Conexão */
         .status-dot {
@@ -96,12 +94,24 @@
 
 <div id="app" class="flex h-screen overflow-hidden">
     
-    <!-- Loading State -->
-    <div :class="{'loading-hidden': !loading}" class="loading-overlay">
-        <div class="text-center">
-            <i class="fa-solid fa-cloud-arrow-up fa-bounce text-4xl text-blue-600 mb-4"></i>
-            <h2 class="text-xl font-bold text-gray-800">Conectando ao Servidor...</h2>
-            <p class="text-gray-500 text-sm mt-2">Sincronizando Leads e Equipe</p>
+    <!-- Tela de Login / Sala -->
+    <div v-if="!salaAtual" class="fullscreen-overlay">
+        <div class="glass-panel p-10 text-center max-w-md w-full shadow-2xl animate-fade-in-up">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-lg">R</div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Bem-vindo ao Revive CRM</h1>
+            <p class="text-gray-500 mb-8">Entre na sua sala para sincronizar com a equipe.</p>
+            
+            <div class="text-left mb-6">
+                <label class="text-xs font-bold text-gray-500 uppercase ml-1">Nome da Sala / Equipe</label>
+                <div class="relative mt-1">
+                    <i class="fa-solid fa-users absolute left-3 top-3 text-gray-400"></i>
+                    <input v-model="salaInput" @keyup.enter="entrarSala" type="text" placeholder="Ex: COMERCIAL" class="w-full pl-10 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 uppercase font-bold text-gray-700">
+                </div>
+            </div>
+
+            <button @click="entrarSala" :disabled="!salaInput" class="w-full btn-future text-white py-3 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                Entrar na Sala <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
         </div>
     </div>
 
@@ -111,7 +121,7 @@
         <span>{{ toast.message }}</span>
     </div>
 
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-lg">
+    <aside v-if="salaAtual" class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-lg">
         <div class="p-6 flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">R</div>
             <div>
@@ -121,11 +131,16 @@
         </div>
 
         <div class="px-6 mb-4">
-            <div class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Status da Rede</div>
-            <div class="flex items-center p-2 rounded bg-gray-50 border border-gray-200">
+            <div class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Sala Conectada</div>
+            <div class="flex items-center justify-between p-3 rounded bg-blue-50 border border-blue-100 mb-2">
+                <span class="font-bold text-blue-800 uppercase text-sm"><i class="fa-solid fa-hashtag mr-1"></i> {{ salaAtual }}</span>
+                <button @click="sairSala" class="text-xs text-red-400 hover:text-red-600" title="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+            
+            <div class="flex items-center gap-2 text-xs">
                 <span class="status-dot" :class="offlineMode ? 'status-offline' : 'status-online'"></span>
-                <span class="text-xs font-bold" :class="offlineMode ? 'text-red-600' : 'text-green-600'">
-                    {{ offlineMode ? 'Offline (Local)' : 'Online (Sincronizado)' }}
+                <span class="font-bold" :class="offlineMode ? 'text-red-600' : 'text-green-600'">
+                    {{ offlineMode ? 'Offline' : 'Sincronizado' }}
                 </span>
             </div>
         </div>
@@ -146,7 +161,7 @@
         </nav>
     </aside>
 
-    <main class="flex-1 flex flex-col relative overflow-hidden bg-gray-100">
+    <main v-if="salaAtual" class="flex-1 flex flex-col relative overflow-hidden bg-gray-100">
         
         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-10">
             <h2 class="text-xl font-bold text-gray-800">{{ pageTitle }}</h2>
@@ -270,18 +285,20 @@
                 </div>
             </div>
 
-            <div v-if="view === 'mapa'" class="space-y-6">
-                <div class="glass-panel p-6 h-full flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
+            <div v-if="view === 'mapa'" class="flex flex-col h-full">
+                <div class="glass-panel p-6 flex-1 flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-4 flex-shrink-0">
                         <h3 class="font-bold text-xl">Mapa de Calor (Geolocalização)</h3>
                         <div class="flex items-center gap-4 text-sm">
                             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Fechados</span>
                             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span> Em Andamento</span>
                         </div>
                     </div>
-                    <div id="mapContainer" class="flex-1 shadow-inner border border-gray-300 bg-gray-200">
-                        <div v-if="!mapInstance" class="flex h-full items-center justify-center text-gray-500">
-                            Carregando mapa...
+                    <div class="flex-1 relative bg-gray-200 rounded-xl overflow-hidden shadow-inner border border-gray-300">
+                        <div id="mapContainer">
+                             <div v-if="!mapInstance" class="flex h-full items-center justify-center text-gray-500">
+                                Carregando mapa...
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -411,7 +428,6 @@
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- CONEXÃO MANUAL E ROBUSTA ---
-    // Tentamos parsear as configs injetadas pelo ambiente.
     let firebaseConfig = null;
     let appId = 'default-app';
     let app, auth, db;
@@ -436,12 +452,15 @@
         data() {
             return {
                 view: 'dashboard',
-                loading: true,
+                salaInput: '', // Nome digitado no input
+                salaAtual: localStorage.getItem('revive_sala_atual') || '', // Sala persistida
+                loading: false,
                 offlineMode: false,
                 searchQuery: '',
                 showModal: false,
                 editingLead: null,
                 leads: [],
+                allLeads: [], // Todos os leads (para filtrar por sala)
                 listaConsultores: ['João', 'Maria', 'Pedro'], 
                 novoConsultor: '',
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta / Perdido'],
@@ -459,7 +478,10 @@
         created() {
             this.mapInstance = null;
             this.charts = {};
-            this.loadLocalData(); // Carrega backup local primeiro
+            // Se já tiver sala salva, tenta conectar direto
+            if(this.salaAtual) {
+                this.initFirebase();
+            }
         },
         computed: {
             pageTitle() {
@@ -496,98 +518,96 @@
             }
         },
         methods: {
+            entrarSala() {
+                if(!this.salaInput) return;
+                this.salaAtual = this.salaInput.toUpperCase().trim();
+                localStorage.setItem('revive_sala_atual', this.salaAtual);
+                this.loading = true; // Mostra loading ao entrar
+                this.initFirebase();
+            },
+            sairSala() {
+                this.salaAtual = '';
+                localStorage.removeItem('revive_sala_atual');
+                // Reseta dados
+                this.leads = [];
+                this.allLeads = [];
+                if(this.mapInstance) { this.mapInstance.remove(); this.mapInstance = null; }
+            },
             showToast(msg, icon='fa-check-circle') {
                 this.toast = { show: true, message: msg, icon: icon };
                 setTimeout(() => this.toast.show = false, 3000);
-            },
-
-            loadLocalData() {
-                const localData = localStorage.getItem('revive_leads_backup');
-                if (localData) {
-                    try {
-                        this.leads = JSON.parse(localData);
-                    } catch(e) { console.error("Erro backup local"); }
-                }
-            },
-
-            saveLocalData() {
-                localStorage.setItem('revive_leads_backup', JSON.stringify(this.leads));
             },
 
             async changeView(newView) {
                 this.view = newView;
                 await this.$nextTick();
                 if(newView === 'dashboard') this.updateCharts();
-                if(newView === 'mapa') setTimeout(() => this.initMap(), 100); 
+                if(newView === 'mapa') {
+                    // Delay maior para garantir que o layout flex esteja resolvido
+                    setTimeout(() => this.initMap(), 300); 
+                }
             },
             
-            // --- INICIALIZAÇÃO "MANUAL" DO FIREBASE ---
             async initFirebase() {
                 if(!db) {
-                    this.enableOfflineMode("Configuração não encontrada");
+                    this.offlineMode = true;
+                    this.loading = false;
                     return;
                 }
 
                 try {
-                    // Passo 1: Autenticação Explícita
+                    // Passo 1: Autenticação
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         await signInAnonymously(auth);
                     }
 
-                    // Passo 2: Listener de Estado (Só conecta no DB se o User estiver OK)
+                    // Passo 2: Monitorar Conexão
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
-                            console.log("Usuário autenticado:", user.uid);
                             this.connectToDatabase();
                         } else {
-                            this.enableOfflineMode("Usuário não autenticado");
+                            this.loading = false;
+                            this.offlineMode = true;
                         }
                     });
 
                 } catch (error) {
-                    console.error("Erro na autenticação:", error);
-                    this.enableOfflineMode("Falha ao logar");
+                    console.error("Erro Login:", error);
+                    this.loading = false;
+                    this.offlineMode = true;
                 }
             },
 
             connectToDatabase() {
                 try {
-                    // Passo 3: Conexão Direta ao Firestore
+                    // Passo 3: Buscar TODOS e filtrar na memória (Regra de Salas)
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
                     
                     onSnapshot(leadsRef, (snapshot) => {
-                        this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                        this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         
-                        // SUCESSO: Estamos online e sincronizados!
+                        // FILTRAGEM POR SALA
+                        this.leads = this.allLeads.filter(lead => lead.sala === this.salaAtual);
+                        
                         this.offlineMode = false;
                         this.loading = false;
                         dbReady = true;
-                        
-                        // Atualiza backup local
-                        this.saveLocalData();
 
                         if(this.view === 'dashboard') this.updateCharts();
                         if(this.view === 'mapa') this.initMap();
                         
                     }, (error) => {
-                        console.error("Erro ao ler dados:", error);
-                        // Se der erro de permissão ou conexão aqui, aí sim vamos pro offline
-                        this.enableOfflineMode("Erro de leitura do DB");
+                        console.error("Erro Snapshot:", error);
+                        this.loading = false;
+                        this.offlineMode = true;
                     });
                 } catch(e) {
-                    console.error("Erro ao montar listener:", e);
-                    this.enableOfflineMode("Erro interno do DB");
+                    console.error("Erro DB:", e);
+                    this.loading = false;
+                    this.offlineMode = true;
                 }
-            },
-
-            enableOfflineMode(razao) {
-                this.loading = false;
-                this.offlineMode = true;
-                // Mantém os dados locais carregados
-                this.loadLocalData();
-                console.warn(`Modo Offline Ativado: ${razao}`);
             },
 
             getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
@@ -610,7 +630,10 @@
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(this.mapInstance);
                 
-                this.mapInstance.invalidateSize();
+                // MÁGICA PARA MAPA TELA CHEIA
+                setTimeout(() => {
+                    this.mapInstance.invalidateSize();
+                }, 100);
 
                 const cityGroups = {};
                 this.leads.forEach(lead => {
@@ -735,7 +758,7 @@
                     return;
                 }
 
-                // Atualização Otimista (Visual Imediato)
+                // Otimista
                 if(lead) {
                     lead.etapa = novaEtapa;
                     if(this.view === 'dashboard') this.updateCharts();
@@ -743,17 +766,11 @@
 
                 if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
-                // Sincronização
-                if (!this.offlineMode && dbReady) {
+                if (dbReady) {
                     try {
                         const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
                         await updateDoc(leadRef, { etapa: novaEtapa });
-                    } catch(e) {
-                        console.error("Erro ao sincronizar movimento:", e);
-                        this.saveLocalData(); // Fallback
-                    }
-                } else {
-                    this.saveLocalData();
+                    } catch(e) { console.error("Erro sync:", e); }
                 }
             },
 
@@ -777,22 +794,24 @@
                 const data = { ...this.form };
                 if(data.cidade) data.cidade = data.cidade.toString().trim();
                 if(data.estado) data.estado = data.estado.toString().trim();
+                
+                // IMPORTANTE: Adiciona a sala ao lead
+                data.sala = this.salaAtual;
 
-                // 1. Atualização Local (Imediata)
+                // Salva Local Otimista
                 if (this.editingLead) {
                     const index = this.leads.findIndex(l => l.id === this.form.id);
                     if(index !== -1) this.leads[index] = data;
                 } else {
-                    // ID Temporário (será substituído pelo do Firebase se online)
                     if(!data.id) data.id = Date.now().toString(); 
                     this.leads.push(data);
                 }
                 this.closeModal();
 
-                // 2. Sincronização Online
-                if (!this.offlineMode && dbReady) {
+                // Salva Nuvem
+                if (dbReady) {
                     const cloudData = {...data};
-                    delete cloudData.id; // Deixa o Firestore cuidar do ID ou usamos referência
+                    delete cloudData.id; 
                     
                     try {
                         const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
@@ -806,36 +825,25 @@
                         }
                         this.showToast('Sincronizado!', 'fa-cloud-upload');
                     } catch(e) {
-                        console.error("Erro ao salvar na nuvem:", e);
-                        this.saveLocalData();
-                        this.showToast('Salvo Localmente (Erro Nuvem)', 'fa-save');
+                        console.error("Erro salvar:", e);
+                        this.showToast('Erro ao sincronizar', 'fa-exclamation-triangle');
                     }
-                } else {
-                    this.saveLocalData();
-                    this.showToast('Salvo Localmente', 'fa-save');
                 }
                 
                 if(this.view === 'dashboard') this.updateCharts();
             },
             async deleteLead() {
                 if(!confirm('Excluir lead?')) return;
+                const id = this.form.id;
 
-                const idParaDeletar = this.form.id;
-
-                // Remove local
-                this.leads = this.leads.filter(l => l.id !== idParaDeletar);
+                this.leads = this.leads.filter(l => l.id !== id);
                 this.closeModal();
 
-                if (!this.offlineMode && dbReady) {
+                if (dbReady) {
                     try {
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', idParaDeletar);
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', id);
                         await deleteDoc(docRef);
-                    } catch(e) {
-                        console.error("Erro ao excluir na nuvem:", e);
-                        this.saveLocalData();
-                    }
-                } else {
-                    this.saveLocalData();
+                    } catch(e) { console.error("Erro delete:", e); }
                 }
                 
                 if(this.view === 'dashboard') this.updateCharts();
@@ -854,7 +862,7 @@
             }
         },
         mounted() {
-            this.initFirebase();
+            // No mounted só carrega consultores
             const saved = localStorage.getItem('revive_consultores');
             if(saved) this.listaConsultores = JSON.parse(saved);
         }
