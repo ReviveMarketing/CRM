@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LEADS INTERNO - REVIVE ASSESSORIA</title>
+    <title>LEADS INTERNO - REVIVE CRM</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -53,7 +53,7 @@
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        /* Mapa Real - CORREÇÃO DE TAMANHO FULL */
+        /* Mapa Real - FULL */
         .map-wrapper {
             position: relative;
             width: 100%;
@@ -79,15 +79,14 @@
         }
         .btn-future:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(37, 99, 235, 0.5); }
         
-        /* Loading & Login Overlay */
+        /* Loading & Overlay */
         .fullscreen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #F3F4F6; z-index: 9999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 0.5s ease;
         }
-        .hidden-overlay { opacity: 0; pointer-events: none; }
-
+        
         /* Status Conexão */
         .status-dot {
             width: 10px; height: 10px; border-radius: 50%;
@@ -103,13 +102,19 @@
     
     <!-- Tela de Login / Sala -->
     <div v-if="!salaAtual" class="fullscreen-overlay">
-        <div class="glass-panel p-10 text-center max-w-md w-full shadow-2xl animate-fade-in-up">
+        <div class="glass-panel p-10 text-center max-w-md w-full shadow-2xl animate-fade-in-up relative">
+            
             <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-lg">R</div>
             <h1 class="text-2xl font-bold text-gray-800 mb-2">Revive CRM</h1>
-            <p class="text-gray-500 mb-8">Entre na mesma sala para ver os dados em tempo real.</p>
+            <p class="text-gray-500 mb-2">Multiplayer em Tempo Real</p>
+            
+            <!-- Indicador de Config Própria -->
+            <div class="bg-blue-50 text-blue-800 text-xs p-2 rounded mb-6 border border-blue-200">
+                <i class="fa-solid fa-server mr-1"></i> Servidor: <strong>crm-revive</strong>
+            </div>
             
             <div class="text-left mb-6">
-                <label class="text-xs font-bold text-gray-500 uppercase ml-1">Nome da Sala (Ex: VENDAS)</label>
+                <label class="text-xs font-bold text-gray-500 uppercase ml-1">Nome da Sala (Ex: COMERCIAL)</label>
                 <div class="relative mt-1">
                     <i class="fa-solid fa-users absolute left-3 top-3 text-gray-400"></i>
                     <input v-model="salaInput" @keyup.enter="entrarSala" type="text" placeholder="Digite o nome da sala..." class="w-full pl-10 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 uppercase font-bold text-gray-700">
@@ -117,7 +122,7 @@
             </div>
 
             <button @click="entrarSala" :disabled="!salaInput" class="w-full btn-future text-white py-3 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                Acessar Sistema <i class="fa-solid fa-arrow-right ml-2"></i>
+                Entrar na Sala <i class="fa-solid fa-arrow-right ml-2"></i>
             </button>
         </div>
     </div>
@@ -144,17 +149,19 @@
                 <button @click="sairSala" class="text-xs text-red-400 hover:text-red-600" title="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
             
-            <div class="flex flex-col gap-2 mt-2">
-                <div class="flex items-center gap-2 text-xs">
-                    <span class="status-dot" :class="offlineMode ? 'status-offline' : 'status-online'"></span>
-                    <span class="font-bold" :class="offlineMode ? 'text-red-600' : 'text-green-600'">
-                        {{ offlineMode ? 'Desconectado' : 'Conectado (Sync)' }}
-                    </span>
+            <div class="flex flex-col gap-2 mt-4 bg-gray-100 p-2 rounded text-[10px] border">
+                <div class="font-bold text-gray-500 uppercase border-b pb-1 mb-1">Status da Rede</div>
+                <div class="flex justify-between items-center">
+                    <span>Database:</span>
+                    <span :class="dbConnected ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">{{ dbConnected ? 'CONECTADO' : 'AGUARDANDO...' }}</span>
                 </div>
-                <button v-if="offlineMode" @click="retryConnection" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 font-bold w-full">
-                    <i class="fa-solid fa-rotate-right mr-1"></i> Tentar Reconectar
-                </button>
+                <div v-if="errorMessage" class="mt-1 text-red-600 leading-tight">
+                    {{ errorMessage }}
+                </div>
             </div>
+             <button v-if="!dbConnected" @click="retryConnection" class="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 font-bold w-full">
+                <i class="fa-solid fa-rotate-right mr-1"></i> Forçar Conexão
+            </button>
         </div>
 
         <nav class="flex-1 px-4 space-y-2 mt-2">
@@ -440,45 +447,38 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- VARIÁVEIS GLOBAIS DO MÓDULO ---
+    // --- CONFIGURAÇÃO MANUAL DO USUÁRIO ---
+    // Inserida diretamente no código para garantir conexão "plug-and-play"
+    const USER_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyC0rXC6dYNhRzth6aa_5qcmavy0Q8wS0nA",
+        authDomain: "crm-revive.firebaseapp.com",
+        projectId: "crm-revive",
+        storageBucket: "crm-revive.firebasestorage.app",
+        messagingSenderId: "159299012557",
+        appId: "1:159299012557:web:355a966f272c0191d8e684",
+        measurementId: "G-LVVTP722EM"
+    };
+
+    // --- VARIÁVEIS GLOBAIS ---
     let app, auth, db;
     
-    // --- FUNÇÃO AUXILIAR DE INICIALIZAÇÃO SEGURA ---
-    function initFirebaseModules() {
-        if (typeof __firebase_config === 'undefined') {
-            console.error("Configuração do Firebase ausente no ambiente.");
-            return false;
-        }
-        try {
-            const config = JSON.parse(__firebase_config);
-            const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-            
-            app = initializeApp(config);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            return { db, auth, appId: currentAppId };
-        } catch(e) {
-            console.error("Erro ao inicializar módulos Firebase:", e);
-            return false;
-        }
-    }
-
     const { createApp } = Vue;
 
     createApp({
         data() {
             return {
                 view: 'dashboard',
-                salaInput: '', // Nome digitado no input
+                salaInput: '',
                 salaAtual: localStorage.getItem('revive_sala_atual') || '', 
-                loading: false,
-                offlineMode: true, // Começa assumindo offline até provar o contrário
-                connectionError: '',
+                
+                dbConnected: false,
+                errorMessage: '',
+                
                 searchQuery: '',
                 showModal: false,
                 editingLead: null,
                 leads: [],
-                allLeads: [], // Todos os leads (para filtrar por sala)
+                allLeads: [],
                 listaConsultores: ['João', 'Maria', 'Pedro'], 
                 novoConsultor: '',
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta / Perdido'],
@@ -496,8 +496,11 @@
         created() {
             this.mapInstance = null;
             this.charts = {};
-            // Tenta inicializar Firebase imediatamente
+        },
+        mounted() {
             this.retryConnection();
+            const saved = localStorage.getItem('revive_consultores');
+            if(saved) this.listaConsultores = JSON.parse(saved);
         },
         computed: {
             pageTitle() {
@@ -538,14 +541,12 @@
                 if(!this.salaInput) return;
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
-                // Ao mudar de sala, recarrega dados se estiver conectado
-                if(!this.offlineMode) this.connectToDatabase();
+                this.updateLeadsByRoom();
             },
             sairSala() {
                 this.salaAtual = '';
                 localStorage.removeItem('revive_sala_atual');
                 this.leads = [];
-                this.allLeads = [];
                 if(this.mapInstance) { this.mapInstance.remove(); this.mapInstance = null; }
             },
             showToast(msg, icon='fa-check-circle') {
@@ -553,98 +554,60 @@
                 setTimeout(() => this.toast.show = false, 3000);
             },
 
-            async changeView(newView) {
-                this.view = newView;
-                await this.$nextTick();
-                if(newView === 'dashboard') this.updateCharts();
-                if(newView === 'mapa') {
-                    // Força resize do mapa
-                    setTimeout(() => this.initMap(), 300); 
-                }
-            },
-            
             async retryConnection() {
-                this.loading = true;
-                this.connectionError = '';
+                this.errorMessage = '';
+                this.dbConnected = false;
                 
-                // 1. Inicializa módulos
-                const modules = initFirebaseModules();
-                if (!modules) {
-                    this.loading = false;
-                    this.offlineMode = true;
-                    this.connectionError = "Erro na Configuração";
-                    this.loadLocalData(); // Fallback
-                    return;
-                }
-
-                const { db: _db, auth: _auth, appId: _appId } = modules;
-                
-                // Define globalmente para o escopo do Vue acessar (embora já esteja no escopo do módulo)
-                // Vamos usar as referências retornadas para garantir
+                const config = USER_FIREBASE_CONFIG; // Usa a config hardcoded do usuário
                 
                 try {
-                    // 2. Autenticação Robusta (Token -> Anônimo)
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        try {
-                            await signInWithCustomToken(_auth, __initial_auth_token);
-                            console.log("Logado com Token Customizado");
-                        } catch(tokenError) {
-                            console.warn("Falha no token, tentando anônimo...", tokenError);
-                            await signInAnonymously(_auth);
-                        }
-                    } else {
-                        await signInAnonymously(_auth);
-                    }
+                    // Inicializa App
+                    try { app = initializeApp(config); } catch(e) { } // Ignora erro se já inicializado
+                    
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    
+                    // LOGIN ANÔNIMO (Requer ativação no Console)
+                    await signInAnonymously(auth);
 
-                    // 3. Monitoramento de Estado
-                    onAuthStateChanged(_auth, (user) => {
+                    onAuthStateChanged(auth, (user) => {
                         if (user) {
-                            console.log("Usuário autenticado, conectando ao DB...");
-                            this.connectToDatabase(_db, _appId);
+                            this.connectDB();
                         } else {
-                            console.warn("Usuário deslogado.");
-                            this.offlineMode = true;
-                            this.loading = false;
+                            this.errorMessage = "Falha na Autenticação Anônima. Verifique o Console Firebase.";
                         }
                     });
 
-                } catch (error) {
-                    console.error("Erro fatal de autenticação:", error);
-                    this.offlineMode = true;
-                    this.loading = false;
-                    this.showToast("Erro ao Conectar: " + error.message, 'fa-wifi-slash');
-                    this.loadLocalData();
+                } catch(e) {
+                    this.errorMessage = "Erro de Conexão: " + e.message;
+                    console.error("Erro Firebase:", e);
                 }
             },
 
-            connectToDatabase(_db = db, _appId = (typeof __app_id !== 'undefined' ? __app_id : 'default-app')) {
-                if(!_db) return;
-                
+            connectDB() {
                 try {
-                    const leadsRef = collection(_db, 'artifacts', _appId, 'public', 'data', 'leads');
+                    // USA COLEÇÃO RAIZ SIMPLIFICADA (Para donos de projeto)
+                    const leadsRef = collection(db, 'leads');
                     
                     onSnapshot(leadsRef, (snapshot) => {
+                        this.dbConnected = true;
                         this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                        
-                        // Atualiza leads filtrados pela sala
                         this.updateLeadsByRoom();
                         
-                        this.offlineMode = false;
-                        this.loading = false;
-                        this.saveLocalData(); // Backup dos dados da nuvem
-
                         if(this.view === 'dashboard') this.updateCharts();
                         if(this.view === 'mapa') this.initMap();
                         
                     }, (error) => {
-                        console.error("Erro no Listener do Banco:", error);
-                        this.offlineMode = true;
-                        this.loading = false;
-                        this.showToast("Erro de Permissão ou Rede", 'fa-exclamation-circle');
+                        console.error("Erro DB:", error);
+                        if(error.code === 'permission-denied') {
+                            this.errorMessage = "Permissão Negada! Verifique as REGRAS no Console.";
+                        } else {
+                            this.errorMessage = "Erro Banco: " + error.code;
+                        }
+                        this.dbConnected = false;
                     });
                 } catch(e) {
-                    console.error("Erro ao criar listener:", e);
-                    this.offlineMode = true;
+                    this.errorMessage = "Erro Listener: " + e.message;
                 }
             },
 
@@ -656,20 +619,13 @@
                 }
             },
 
-            loadLocalData() {
-                const localData = localStorage.getItem('revive_leads_backup');
-                if (localData) {
-                    try {
-                        this.leads = JSON.parse(localData);
-                        console.log("Backup local carregado.");
-                    } catch(e) { console.error("Erro ao ler backup"); }
-                }
+            async changeView(newView) {
+                this.view = newView;
+                await this.$nextTick();
+                if(newView === 'dashboard') this.updateCharts();
+                if(newView === 'mapa') setTimeout(() => this.initMap(), 300); 
             },
-
-            saveLocalData() {
-                localStorage.setItem('revive_leads_backup', JSON.stringify(this.leads));
-            },
-
+            
             getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
             isIncomplete(lead) { return lead.telefone && !lead.nome; },
             cleanPhone(phone) { return phone ? phone.replace(/\D/g,'') : ''; },
@@ -690,10 +646,7 @@
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(this.mapInstance);
                 
-                // MÁGICA: InvalidateSize com delay para garantir que o flexbox calculou a altura
-                setTimeout(() => {
-                    this.mapInstance.invalidateSize();
-                }, 200);
+                setTimeout(() => { this.mapInstance.invalidateSize(); }, 200);
 
                 const cityGroups = {};
                 this.leads.forEach(lead => {
@@ -704,8 +657,6 @@
                     }
                 });
 
-                // (Código de geocodificação mantido igual)
-                const markers = [];
                 for (const [location, leadsInCity] of Object.entries(cityGroups)) {
                     let coords = this.cityCache[location];
                     if (!coords) {
@@ -713,7 +664,7 @@
                             let query = `${location}, Brazil`;
                             let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
                             let data = await response.json();
-                            if (!data || data.length === 0) {
+                            if ((!data || data.length === 0)) {
                                 const justCity = location.split(',')[0];
                                 query = `${justCity}, Brazil`;
                                 response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
@@ -731,35 +682,10 @@
                         leadsInCity.forEach(lead => {
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
                             const color = isClosed ? '#22C55E' : '#F59E0B'; 
-                            
-                            const jitterFactor = 0.015;
-                            const lat = coords[0] + (Math.random() - 0.5) * jitterFactor;
-                            const lon = coords[1] + (Math.random() - 0.5) * jitterFactor;
-
-                            const marker = L.circleMarker([lat, lon], {
-                                radius: 8,
-                                fillColor: color,
-                                color: '#fff',
-                                weight: 2,
-                                opacity: 1,
-                                fillOpacity: 0.9
-                            }).addTo(this.mapInstance);
-
-                            marker.bindPopup(`
-                                <div class="text-xs">
-                                    <strong class="text-sm block mb-1">${lead.nome || 'Sem Nome'}</strong>
-                                    ${lead.cidade} - ${lead.estado}
-                                </div>
-                            `);
-                            
-                            markers.push(marker);
+                            const marker = L.circleMarker(coords, { radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9 }).addTo(this.mapInstance);
+                            marker.bindPopup(`<div class="text-xs"><strong class="text-sm block mb-1">${lead.nome || 'Sem Nome'}</strong>${lead.cidade} - ${lead.estado}</div>`);
                         });
                     }
-                }
-                
-                if (markers.length > 0) {
-                    const group = L.featureGroup(markers);
-                    this.mapInstance.fitBounds(group.getBounds(), { padding: [50, 50] });
                 }
             },
 
@@ -768,19 +694,12 @@
                 if(ctxOrigem) {
                     if(this.charts.origem) this.charts.origem.destroy();
                     const origens = {};
-                    this.leads.forEach(l => {
-                        const o = l.origem || 'Outros';
-                        origens[o] = (origens[o] || 0) + 1;
-                    });
-                    
+                    this.leads.forEach(l => { const o = l.origem || 'Outros'; origens[o] = (origens[o] || 0) + 1; });
                     this.charts.origem = new Chart(ctxOrigem, {
                         type: 'doughnut',
                         data: {
                             labels: Object.keys(origens),
-                            datasets: [{
-                                data: Object.values(origens),
-                                backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
-                            }]
+                            datasets: [{ data: Object.values(origens), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'] }]
                         },
                         options: { responsive: true, plugins: { legend: { position: 'right' } } }
                     });
@@ -822,15 +741,14 @@
 
                 if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
-                // Tenta sincronizar
-                if (!this.offlineMode && db) {
+                if (this.dbConnected) {
                     try {
-                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-                        const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
+                        const leadRef = doc(db, 'leads', leadId);
                         await updateDoc(leadRef, { etapa: novaEtapa });
-                    } catch(e) { console.error("Erro sync:", e); }
-                } else {
-                    this.saveLocalData();
+                    } catch(e) { 
+                        console.error("Erro sync:", e);
+                        this.showToast('Erro ao sincronizar: ' + e.message, 'fa-exclamation-triangle');
+                    }
                 }
             },
 
@@ -851,48 +769,33 @@
                 this.showModal = true;
             },
             async saveLead() {
+                if (!this.dbConnected) {
+                    alert("Erro: Não conectado ao Banco de Dados.");
+                    return;
+                }
+
                 const data = { ...this.form };
                 if(data.cidade) data.cidade = data.cidade.toString().trim();
                 if(data.estado) data.estado = data.estado.toString().trim();
                 
-                // Associa a sala atual
                 data.sala = this.salaAtual;
+                delete data.id;
 
-                // Atualização Local Imediata
-                if (this.editingLead) {
-                    const index = this.leads.findIndex(l => l.id === this.form.id);
-                    if(index !== -1) this.leads[index] = data;
-                } else {
-                    if(!data.id) data.id = Date.now().toString(); 
-                    this.leads.push(data);
-                }
-                this.closeModal();
+                try {
+                    const leadsRef = collection(db, 'leads');
 
-                // Persistência na Nuvem
-                if (!this.offlineMode && db) {
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-                    const cloudData = {...data};
-                    delete cloudData.id; 
-                    
-                    try {
-                        const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
-
-                        if (this.editingLead) {
-                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
-                            await updateDoc(docRef, cloudData);
-                        } else {
-                            cloudData.dataCriacao = new Date().toISOString();
-                            await addDoc(leadsRef, cloudData);
-                        }
-                        this.showToast('Sincronizado!', 'fa-cloud-upload');
-                    } catch(e) {
-                        console.error("Erro ao salvar nuvem:", e);
-                        this.saveLocalData();
-                        this.showToast('Salvo Localmente (Offline)', 'fa-save');
+                    if (this.editingLead) {
+                        const docRef = doc(db, 'leads', this.form.id);
+                        await updateDoc(docRef, data);
+                    } else {
+                        data.dataCriacao = new Date().toISOString();
+                        await addDoc(leadsRef, data);
                     }
-                } else {
-                    this.saveLocalData();
-                    this.showToast('Salvo Localmente', 'fa-save');
+                    this.closeModal();
+                    this.showToast('Salvo na Nuvem!', 'fa-cloud-upload');
+                } catch(e) {
+                    console.error("Erro ao salvar nuvem:", e);
+                    this.showToast('Erro ao salvar: ' + e.message, 'fa-exclamation-circle');
                 }
                 
                 if(this.view === 'dashboard') this.updateCharts();
@@ -901,17 +804,15 @@
                 if(!confirm('Excluir lead?')) return;
                 const id = this.form.id;
 
-                this.leads = this.leads.filter(l => l.id !== id);
-                this.closeModal();
-
-                if (!this.offlineMode && db) {
+                if (this.dbConnected) {
                     try {
-                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', id);
+                        const docRef = doc(db, 'leads', id);
                         await deleteDoc(docRef);
-                    } catch(e) { console.error("Erro delete:", e); }
-                } else {
-                    this.saveLocalData();
+                        this.closeModal();
+                    } catch(e) { 
+                        console.error("Erro delete:", e); 
+                        alert("Erro ao excluir: " + e.message);
+                    }
                 }
                 
                 if(this.view === 'dashboard') this.updateCharts();
@@ -928,10 +829,6 @@
                 this.listaConsultores.splice(index, 1);
                 localStorage.setItem('revive_consultores', JSON.stringify(this.listaConsultores));
             }
-        },
-        mounted() {
-            const saved = localStorage.getItem('revive_consultores');
-            if(saved) this.listaConsultores = JSON.parse(saved);
         }
     }).mount('#app');
 </script>
