@@ -19,28 +19,47 @@
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #F3F4F6; color: #1F2937; }
         
-        /* Estilo Futurista Clean */
+        /* Estilo Futurista & Elegante */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
-            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+            border-radius: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-panel:hover {
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12);
         }
 
         .kanban-col {
             min-height: 500px;
-            background: #E5E7EB;
-            border-radius: 12px;
+            background: #F1F5F9;
+            border-radius: 16px;
+            border: 1px solid #E2E8F0;
         }
 
         .card-lead {
             background: white;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: grab;
             border-left: 4px solid transparent;
+            position: relative;
+            overflow: hidden;
         }
-        .card-lead:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .card-lead::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transform: translateX(-100%);
+            transition: 0.5s;
+        }
+        .card-lead:hover { 
+            transform: translateY(-4px); 
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1); 
+        }
+        .card-lead:hover::after { transform: translateX(100%); }
         .card-lead:active { cursor: grabbing; }
 
         .incomplete-lead {
@@ -59,9 +78,10 @@
             width: 100%;
             height: 100%;
             min-height: 600px;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
             z-index: 1;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
         }
         #mapContainer {
             width: 100%;
@@ -71,14 +91,42 @@
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #94A3B8; border-radius: 3px; }
 
         .btn-future {
-            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
             transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }
-        .btn-future:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(37, 99, 235, 0.5); }
+        .btn-future:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); 
+        }
         
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #EF4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            box-shadow: 0 0 0 2px white;
+            animation: bounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes bounce {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
         /* Loading & Overlay */
         .fullscreen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -86,14 +134,6 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 0.5s ease;
         }
-        
-        /* Status Conexão */
-        .status-dot {
-            width: 10px; height: 10px; border-radius: 50%;
-            display: inline-block; margin-right: 6px;
-        }
-        .status-online { background-color: #10B981; box-shadow: 0 0 8px #10B981; }
-        .status-offline { background-color: #EF4444; box-shadow: 0 0 8px #EF4444; }
     </style>
 </head>
 <body>
@@ -102,169 +142,234 @@
     
     <!-- Tela de Login / Sala -->
     <div v-if="!salaAtual" class="fullscreen-overlay">
-        <div class="glass-panel p-10 text-center max-w-md w-full shadow-2xl animate-fade-in-up relative">
+        <div class="glass-panel p-10 text-center max-w-md w-full shadow-2xl relative">
             
-            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-lg">R</div>
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">Revive CRM</h1>
-            <p class="text-gray-500 mb-2">Multiplayer em Tempo Real</p>
-            
-            <!-- Indicador de Config Própria -->
-            <div class="bg-blue-50 text-blue-800 text-xs p-2 rounded mb-6 border border-blue-200">
-                <i class="fa-solid fa-server mr-1"></i> Servidor: <strong>crm-revive</strong>
-            </div>
+            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl flex items-center justify-center text-white font-bold text-4xl mx-auto mb-6 shadow-blue-500/50 shadow-lg">R</div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2 tracking-tight">Revive CRM</h1>
+            <p class="text-gray-500 mb-8 font-light">Inteligência Comercial & Jurídica</p>
             
             <div class="text-left mb-6">
-                <label class="text-xs font-bold text-gray-500 uppercase ml-1">Nome da Sala (Ex: COMERCIAL)</label>
-                <div class="relative mt-1">
-                    <i class="fa-solid fa-users absolute left-3 top-3 text-gray-400"></i>
-                    <input v-model="salaInput" @keyup.enter="entrarSala" type="text" placeholder="Digite o nome da sala..." class="w-full pl-10 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 uppercase font-bold text-gray-700">
+                <label class="text-xs font-bold text-gray-500 uppercase ml-1 tracking-widest">Acessar Sala</label>
+                <div class="relative mt-2">
+                    <i class="fa-solid fa-layer-group absolute left-4 top-3.5 text-blue-400"></i>
+                    <input v-model="salaInput" @keyup.enter="entrarSala" type="text" placeholder="NOME DA EQUIPE" class="w-full pl-12 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition uppercase font-bold text-gray-700 tracking-wide">
                 </div>
             </div>
 
-            <button @click="entrarSala" :disabled="!salaInput" class="w-full btn-future text-white py-3 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                Entrar na Sala <i class="fa-solid fa-arrow-right ml-2"></i>
+            <button @click="entrarSala" :disabled="!salaInput" class="w-full btn-future text-white py-3.5 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                Entrar no Sistema <i class="fa-solid fa-arrow-right"></i>
             </button>
         </div>
     </div>
 
     <!-- Toast Notification -->
-    <div v-if="toast.show" class="fixed top-5 right-5 z-50 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3 transition-all duration-500">
-        <i :class="toast.icon" class="text-yellow-400"></i>
-        <span>{{ toast.message }}</span>
+    <div v-if="toast.show" class="fixed top-5 right-5 z-50 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 transition-all duration-500 transform translate-y-0 border-l-4 border-blue-500">
+        <i :class="toast.icon" class="text-blue-400 text-xl"></i>
+        <span class="font-medium">{{ toast.message }}</span>
     </div>
 
-    <aside v-if="salaAtual" class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-lg">
-        <div class="p-6 flex items-center gap-3">
-            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">R</div>
+    <aside v-if="salaAtual" class="w-72 bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl">
+        <div class="p-8 flex items-center gap-4">
+            <div class="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">R</div>
             <div>
-                <h1 class="font-bold text-sm tracking-widest text-blue-900">REVIVE</h1>
-                <p class="text-xs text-gray-500">ASSESSORIA</p>
+                <h1 class="font-bold text-lg tracking-widest text-gray-800">REVIVE</h1>
+                <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Assessoria</p>
             </div>
         </div>
 
-        <div class="px-6 mb-4">
-            <div class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Sala Conectada</div>
-            <div class="flex items-center justify-between p-3 rounded bg-blue-50 border border-blue-100 mb-2">
-                <span class="font-bold text-blue-800 uppercase text-sm truncate"><i class="fa-solid fa-hashtag mr-1"></i> {{ salaAtual }}</span>
-                <button @click="sairSala" class="text-xs text-red-400 hover:text-red-600" title="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <div class="px-6 mb-6">
+            <div class="p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 shadow-inner">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Sala Atual</span>
+                    <button @click="sairSala" class="text-xs text-red-400 hover:text-red-600 transition" title="Sair"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+                <div class="font-black text-gray-700 text-lg truncate flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    {{ salaAtual }}
+                </div>
             </div>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-3">
+            <a @click="changeView('dashboard')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'dashboard'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group">
+                <i class="fa-solid fa-chart-pie w-5 transition group-hover:scale-110"></i> 
+                <span class="font-semibold">Dashboard</span>
+            </a>
+            <a @click="changeView('pipeline')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'pipeline'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group">
+                <i class="fa-solid fa-trello w-5 transition group-hover:scale-110"></i> 
+                <span class="font-semibold">Pipeline</span>
+            </a>
+            <a @click="changeView('mapa')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'mapa'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group">
+                <i class="fa-solid fa-map-location-dot w-5 transition group-hover:scale-110"></i> 
+                <span class="font-semibold">Geolocalização</span>
+            </a>
             
-            <div class="flex flex-col gap-2 mt-4 bg-gray-100 p-2 rounded text-[10px] border">
-                <div class="font-bold text-gray-500 uppercase border-b pb-1 mb-1">Status da Rede</div>
-                <div class="flex justify-between items-center">
-                    <span>Database:</span>
-                    <span :class="dbConnected ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">{{ dbConnected ? 'CONECTADO' : 'AGUARDANDO...' }}</span>
-                </div>
-                <div v-if="errorMessage" class="mt-1 text-red-600 leading-tight">
-                    {{ errorMessage }}
+            <!-- Notificações -->
+            <div class="relative">
+                <a @click="showNotifications = !showNotifications" :class="{'bg-blue-50 text-blue-700': showNotifications}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group justify-between">
+                    <div class="flex items-center gap-4">
+                        <i class="fa-solid fa-bell w-5 transition group-hover:scale-110"></i> 
+                        <span class="font-semibold">Notificações</span>
+                    </div>
+                    <span v-if="unreadNotifications.length > 0" class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-red-200">
+                        {{ unreadNotifications.length }}
+                    </span>
+                </a>
+                
+                <!-- Dropdown de Notificações -->
+                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-2 space-y-1">
+                    <div v-if="unreadNotifications.length === 0" class="text-center text-gray-400 py-4 text-xs">
+                        Nenhuma nova mensagem.
+                    </div>
+                    <div v-for="notif in unreadNotifications" :key="notif.id" @click="openNotification(notif)" class="p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition border-b border-gray-50 last:border-0">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-xs text-blue-600 truncate w-2/3">{{ notif.nome || 'Lead sem nome' }}</span>
+                            <span class="text-[10px] text-gray-400"><i class="fa-solid fa-crown text-yellow-500 mr-1"></i>Coord.</span>
+                        </div>
+                        <p class="text-xs text-gray-600 line-clamp-2 italic">"{{ notif.msgCoordenador }}"</p>
+                    </div>
                 </div>
             </div>
-             <button v-if="!dbConnected" @click="retryConnection" class="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 font-bold w-full">
-                <i class="fa-solid fa-rotate-right mr-1"></i> Forçar Conexão
-            </button>
-        </div>
 
-        <nav class="flex-1 px-4 space-y-2 mt-2">
-            <a @click="changeView('dashboard')" :class="{'bg-blue-50 text-blue-700': view === 'dashboard'}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition">
-                <i class="fa-solid fa-chart-pie w-6"></i> Dashboard
-            </a>
-            <a @click="changeView('pipeline')" :class="{'bg-blue-50 text-blue-700': view === 'pipeline'}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition">
-                <i class="fa-solid fa-trello w-6"></i> Pipeline
-            </a>
-            <a @click="changeView('mapa')" :class="{'bg-blue-50 text-blue-700': view === 'mapa'}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition">
-                <i class="fa-solid fa-map-location-dot w-6"></i> Mapa Geográfico
-            </a>
-            <a @click="changeView('config')" :class="{'bg-blue-50 text-blue-700': view === 'config'}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition">
-                <i class="fa-solid fa-users-gear w-6"></i> Consultores
+            <a @click="changeView('config')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'config'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group mt-auto">
+                <i class="fa-solid fa-users-gear w-5 transition group-hover:scale-110"></i> 
+                <span class="font-semibold">Consultores</span>
             </a>
         </nav>
+        
+        <div class="p-4 text-center">
+             <div class="text-[10px] text-gray-400 font-medium">
+                Conexão: <span :class="dbConnected ? 'text-green-500' : 'text-red-500'">{{ dbConnected ? 'Online' : 'Offline' }}</span>
+            </div>
+        </div>
     </aside>
 
-    <main v-if="salaAtual" class="flex-1 flex flex-col relative overflow-hidden bg-gray-100">
+    <main v-if="salaAtual" class="flex-1 flex flex-col relative overflow-hidden bg-gray-50">
         
-        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-10">
-            <h2 class="text-xl font-bold text-gray-800">{{ pageTitle }}</h2>
+        <header class="h-20 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between px-10 z-10 sticky top-0">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">{{ pageTitle }}</h2>
+                <p class="text-xs text-gray-500 font-medium mt-0.5">{{ new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) }}</p>
+            </div>
             
-            <div class="flex items-center gap-4">
-                <div class="relative">
-                    <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
-                    <input v-model="searchQuery" type="text" placeholder="Buscar Cliente..." class="pl-10 pr-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 transition">
+            <div class="flex items-center gap-6">
+                <!-- Filtros de Data para Dashboard -->
+                <div v-if="view === 'dashboard'" class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center px-3 gap-2 border-r border-gray-100">
+                        <span class="text-xs font-bold text-gray-400 uppercase">De</span>
+                        <input type="date" v-model="filterStartDate" class="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer">
+                    </div>
+                    <div class="flex items-center px-3 gap-2">
+                        <span class="text-xs font-bold text-gray-400 uppercase">Até</span>
+                        <input type="date" v-model="filterEndDate" class="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer">
+                    </div>
+                    <button v-if="filterStartDate || filterEndDate" @click="clearDates" class="px-2 text-gray-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <button @click="openModal()" class="btn-future text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
+
+                <div class="relative group">
+                    <i class="fa-solid fa-search absolute left-4 top-3 text-gray-400 group-hover:text-blue-500 transition"></i>
+                    <input v-model="searchQuery" type="text" placeholder="Buscar Cliente..." class="pl-12 pr-4 py-2.5 bg-gray-100 hover:bg-white focus:bg-white border border-transparent focus:border-blue-200 rounded-full text-sm focus:outline-none focus:ring-4 focus:ring-blue-50 w-72 transition-all">
+                </div>
+                <button @click="openModal()" class="btn-future text-white px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300">
                     <i class="fa-solid fa-plus"></i> Novo Lead
                 </button>
             </div>
         </header>
 
-        <div class="flex-1 overflow-auto p-6 relative flex flex-col">
+        <div class="flex-1 overflow-auto p-8 relative flex flex-col scroll-smooth">
 
-            <div v-if="view === 'dashboard'" class="space-y-6">
+            <div v-if="view === 'dashboard'" class="space-y-8 animate-fade-in">
+                <!-- KPI Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div class="glass-panel p-5 border-l-4 border-blue-500">
-                        <p class="text-gray-500 text-sm">Total Leads</p>
-                        <h3 class="text-3xl font-bold text-gray-800">{{ leads.length }}</h3>
+                    <div class="glass-panel p-6 border-l-4 border-blue-500 relative overflow-hidden group">
+                        <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-blue-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Leads</p>
+                        <h3 class="text-4xl font-extrabold text-gray-800 relative z-10">{{ filteredDashboardLeads.length }}</h3>
+                        <p class="text-[10px] text-gray-400 mt-2">No período selecionado</p>
                     </div>
-                    <div class="glass-panel p-5 border-l-4 border-yellow-500">
-                        <p class="text-gray-500 text-sm">Estimado (Pipeline)</p>
-                        <h3 class="text-3xl font-bold text-gray-800">{{ formatMoeda(totalEstimado) }}</h3>
+                    <div class="glass-panel p-6 border-l-4 border-yellow-500 relative overflow-hidden group">
+                         <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-yellow-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Estimado (Pipeline)</p>
+                        <h3 class="text-4xl font-extrabold text-gray-800 relative z-10">{{ formatMoeda(totalEstimado) }}</h3>
+                        <p class="text-[10px] text-gray-400 mt-2">Potencial de receita</p>
                     </div>
-                    <div class="glass-panel p-5 border-l-4 border-green-500">
-                        <p class="text-gray-500 text-sm">Realizado (Caixa)</p>
-                        <h3 class="text-3xl font-bold text-green-600">{{ formatMoeda(totalRealizado) }}</h3>
+                    <div class="glass-panel p-6 border-l-4 border-green-500 relative overflow-hidden group">
+                         <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-green-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Realizado (Caixa)</p>
+                        <h3 class="text-4xl font-extrabold text-green-600 relative z-10">{{ formatMoeda(totalRealizado) }}</h3>
+                        <p class="text-[10px] text-green-700/60 mt-2 font-medium bg-green-50 inline-block px-2 py-0.5 rounded">Confirmado</p>
                     </div>
-                    <div class="glass-panel p-5 border-l-4 border-purple-500">
-                        <p class="text-gray-500 text-sm">Taxa Conversão</p>
-                        <h3 class="text-3xl font-bold text-gray-800">{{ taxaFechamento }}%</h3>
+                    <div class="glass-panel p-6 border-l-4 border-purple-500 relative overflow-hidden group">
+                         <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-purple-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Taxa Conversão</p>
+                        <h3 class="text-4xl font-extrabold text-gray-800 relative z-10">{{ taxaFechamento }}%</h3>
+                        <div class="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div class="bg-purple-500 h-1.5 rounded-full" :style="{width: taxaFechamento + '%'}"></div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="glass-panel p-6 col-span-1 lg:col-span-2">
-                        <h3 class="font-bold text-lg mb-4">Performance por Consultor</h3>
+                    <div class="glass-panel p-8 col-span-1 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-xl text-gray-800">Ranking & Performance</h3>
+                            <button class="text-xs text-blue-500 hover:text-blue-700 font-bold">Ver Completo</button>
+                        </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-gray-500 uppercase bg-gray-50">
+                            <table class="w-full text-sm text-left border-collapse">
+                                <thead class="text-xs text-gray-400 font-bold uppercase border-b border-gray-100">
                                     <tr>
-                                        <th class="px-4 py-2">Consultor</th>
-                                        <th class="px-4 py-2">Leads</th>
-                                        <th class="px-4 py-2">Fechados</th>
-                                        <th class="px-4 py-2">Conv.</th>
+                                        <th class="px-4 py-3">Consultor</th>
+                                        <th class="px-4 py-3">Leads</th>
+                                        <th class="px-4 py-3">Fechados</th>
+                                        <th class="px-4 py-3 text-right">Conversão</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr v-for="c in rankingConsultores" :key="c.nome" class="border-b">
-                                        <td class="px-4 py-3 font-medium">{{ c.nome }}</td>
-                                        <td class="px-4 py-3">{{ c.leads }}</td>
-                                        <td class="px-4 py-3 text-green-600 font-bold">{{ c.fechados }}</td>
-                                        <td class="px-4 py-3">{{ c.conversao }}%</td>
+                                <tbody class="divide-y divide-gray-50">
+                                    <tr v-for="(c, i) in rankingConsultores" :key="c.nome" class="hover:bg-blue-50/50 transition duration-200">
+                                        <td class="px-4 py-4 font-bold text-gray-700 flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-[10px] text-gray-600 font-bold">
+                                                {{ c.nome.charAt(0) }}
+                                            </div>
+                                            {{ c.nome }}
+                                            <i v-if="i === 0" class="fa-solid fa-trophy text-yellow-400"></i>
+                                        </td>
+                                        <td class="px-4 py-4 text-gray-600">{{ c.leads }}</td>
+                                        <td class="px-4 py-4 text-green-600 font-bold">{{ c.fechados }}</td>
+                                        <td class="px-4 py-4 text-right font-bold text-blue-600">{{ c.conversao }}%</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     
-                    <div class="glass-panel p-6 flex flex-col items-center justify-center">
-                        <h3 class="font-bold text-sm mb-2 w-full text-left">Origem dos Leads</h3>
-                         <canvas id="chartOrigem"></canvas>
+                    <div class="glass-panel p-8 flex flex-col items-center justify-center">
+                        <h3 class="font-bold text-lg mb-6 w-full text-left text-gray-800">Origem dos Leads</h3>
+                         <div class="relative w-full h-64">
+                             <canvas id="chartOrigem"></canvas>
+                         </div>
                     </div>
                 </div>
 
-                <div class="glass-panel p-6">
-                    <h3 class="font-bold text-lg mb-4">Funil de Vendas</h3>
-                    <div class="h-64">
+                <div class="glass-panel p-8">
+                    <h3 class="font-bold text-xl mb-6 text-gray-800">Funil de Vendas</h3>
+                    <div class="h-72 w-full">
                         <canvas id="chartEtapas"></canvas>
                     </div>
                  </div>
             </div>
 
-            <div v-if="view === 'pipeline'" class="flex gap-4 h-full overflow-x-auto pb-4">
-                <div v-for="etapa in etapas" :key="etapa" class="min-w-[300px] w-[300px] flex flex-col">
-                    <div class="flex justify-between items-center mb-3 px-2">
-                        <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
-                        <span class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">{{ getLeadsByEtapa(etapa).length }}</span>
+            <div v-if="view === 'pipeline'" class="flex gap-6 h-full overflow-x-auto pb-4 px-2">
+                <div v-for="etapa in etapas" :key="etapa" class="min-w-[320px] w-[320px] flex flex-col">
+                    <div class="flex justify-between items-center mb-4 px-1">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : 'bg-blue-500'"></span>
+                            <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
+                        </div>
+                        <span class="bg-white border border-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm">{{ getLeadsByEtapa(etapa).length }}</span>
                     </div>
                     
-                    <div class="kanban-col flex-1 p-2 space-y-3 overflow-y-auto" 
+                    <div class="kanban-col flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar" 
                          @drop="onDrop($event, etapa)" 
                          @dragover.prevent 
                          @dragenter.prevent>
@@ -274,28 +379,29 @@
                              draggable="true" 
                              @dragstart="startDrag($event, lead)"
                              @click="editLead(lead)"
-                             class="card-lead p-4 rounded-xl shadow-sm relative group"
+                             class="card-lead p-5 rounded-2xl shadow-sm border border-gray-100 group"
                              :class="{'incomplete-lead': isIncomplete(lead)}">
                             
                             <div v-if="isIncomplete(lead)" title="Incompleto: Falta Nome" class="absolute -right-2 -top-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md z-10 font-bold">!</div>
 
-                            <div v-if="lead.msgCoordenador" class="bg-yellow-50 text-yellow-800 text-[10px] p-1.5 rounded mb-2 border border-yellow-200">
-                                <strong>Coord:</strong> {{ lead.msgCoordenador }}
+                            <div v-if="lead.msgCoordenador" class="bg-yellow-50 text-yellow-700 text-[10px] p-2 rounded-lg mb-3 border border-yellow-100 flex items-start gap-2">
+                                <i class="fa-solid fa-crown text-yellow-500 mt-0.5"></i>
+                                <span class="leading-tight">{{ lead.msgCoordenador }}</span>
                             </div>
 
-                            <div class="flex justify-between items-start mb-1">
-                                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{{ lead.consultor || 'Livre' }}</span>
-                                <span class="text-[10px] text-gray-400">{{ lead.origem || '?' }}</span>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wide">{{ lead.consultor || 'Livre' }}</span>
+                                <span class="text-[10px] text-gray-400 font-medium">{{ lead.origem || '?' }}</span>
                             </div>
                             
-                            <h4 class="font-bold text-gray-800 text-sm mb-1 leading-tight" :class="{'text-red-500 italic': !lead.nome}">
+                            <h4 class="font-bold text-gray-800 text-base mb-1 leading-snug group-hover:text-blue-600 transition-colors" :class="{'text-red-500 italic': !lead.nome}">
                                 {{ lead.nome || 'Sem Nome' }}
                             </h4>
-                            <p class="text-xs text-gray-500">{{ lead.campanha || '' }}</p>
+                            <p class="text-xs text-gray-500 mb-3">{{ lead.campanha || '' }}</p>
                             
-                            <div class="flex justify-between items-center border-t pt-2 mt-2">
-                                <span class="text-xs font-bold text-green-600">{{ formatMoeda(lead.receitaEstimada) }}</span>
-                                <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-green-700 bg-green-50 p-1.5 rounded-full">
+                            <div class="flex justify-between items-center border-t border-gray-100 pt-3">
+                                <span class="text-sm font-bold text-gray-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                                <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
                                     <i class="fa-brands fa-whatsapp text-lg"></i>
                                 </a>
                             </div>
@@ -305,36 +411,47 @@
             </div>
 
             <div v-if="view === 'mapa'" class="flex flex-col flex-1 h-full min-h-[600px]">
-                <div class="glass-panel p-6 flex flex-col flex-1">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-xl">Mapa de Calor (Geolocalização)</h3>
-                        <div class="flex items-center gap-4 text-sm">
-                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Fechados</span>
-                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span> Em Andamento</span>
+                <div class="glass-panel p-8 flex flex-col flex-1">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="font-bold text-2xl text-gray-800">Mapa de Calor (Geolocalização)</h3>
+                            <p class="text-sm text-gray-500">Distribuição geográfica automática dos leads cadastrados.</p>
+                        </div>
+                        <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
+                            <span class="flex items-center gap-2 font-medium text-gray-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados (Verde)</span>
+                            <span class="flex items-center gap-2 font-medium text-gray-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento (Laranja)</span>
                         </div>
                     </div>
-                    <div class="flex-1 relative bg-gray-200 rounded-xl overflow-hidden shadow-inner border border-gray-300">
+                    <div class="flex-1 relative bg-gray-100 rounded-2xl overflow-hidden shadow-inner border border-gray-200 ring-4 ring-white">
                          <div class="map-wrapper">
                              <div id="mapContainer"></div>
-                             <div v-if="!mapInstance" class="absolute inset-0 flex items-center justify-center text-gray-500 bg-gray-100 z-50">
-                                Carregando mapa...
+                             <div v-if="!mapInstance" class="absolute inset-0 flex items-center justify-center text-gray-500 bg-gray-50 z-50">
+                                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Carregando mapa...
                             </div>
                          </div>
                     </div>
                 </div>
             </div>
 
-            <div v-if="view === 'config'" class="max-w-2xl mx-auto">
-                <div class="glass-panel p-8">
-                    <h3 class="text-xl font-bold mb-4">Gestão de Consultores</h3>
-                    <div class="flex gap-2 mb-6">
-                        <input v-model="novoConsultor" type="text" placeholder="Nome do Consultor" class="flex-1 p-2 border rounded-lg outline-none">
-                        <button @click="addConsultor" class="bg-green-500 hover:bg-green-600 text-white px-4 rounded-lg font-bold">Adicionar</button>
+            <div v-if="view === 'config'" class="max-w-3xl mx-auto w-full">
+                <div class="glass-panel p-10">
+                    <h3 class="text-2xl font-bold mb-2 text-gray-800">Gestão de Consultores</h3>
+                    <p class="text-gray-500 mb-8">Adicione ou remova membros da equipe para atribuição de leads.</p>
+                    
+                    <div class="flex gap-3 mb-8 bg-gray-50 p-2 rounded-xl border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition">
+                        <input v-model="novoConsultor" type="text" placeholder="Nome do novo consultor..." class="flex-1 p-3 bg-transparent outline-none text-gray-700 font-medium">
+                        <button @click="addConsultor" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-bold transition shadow-lg shadow-blue-200">Adicionar</button>
                     </div>
-                    <ul class="space-y-2">
-                        <li v-for="(nome, index) in listaConsultores" :key="index" class="flex justify-between items-center bg-white p-3 rounded shadow-sm border">
-                            <span>{{ nome }}</span>
-                            <button @click="removeConsultor(index)" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+
+                    <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <li v-for="(nome, index) in listaConsultores" :key="index" class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-md transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                    {{ nome.charAt(0) }}
+                                </div>
+                                <span class="font-medium text-gray-700">{{ nome }}</span>
+                            </div>
+                            <button @click="removeConsultor(index)" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-trash"></i></button>
                         </li>
                     </ul>
                 </div>
@@ -342,32 +459,35 @@
         </div>
     </main>
 
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
+    <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-scale-up">
             
-            <div class="p-5 border-b flex justify-between items-center bg-gray-50">
-                <h3 class="text-xl font-bold text-gray-800">{{ editingLead ? 'Editar Cliente' : 'Novo Lead' }}</h3>
-                <button @click="closeModal" class="text-gray-400 hover:text-red-500 text-2xl">&times;</button>
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-800">{{ editingLead ? 'Editar Cliente' : 'Novo Lead' }}</h3>
+                    <p class="text-xs text-gray-400 uppercase tracking-wider font-bold mt-1">{{ editingLead ? 'ID: ' + form.id.slice(0,8) : 'Novo Cadastro' }}</p>
+                </div>
+                <button @click="closeModal" class="w-10 h-10 rounded-full bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition shadow-sm flex items-center justify-center text-lg"><i class="fa-solid fa-times"></i></button>
             </div>
 
-            <div class="p-8 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    <h4 class="font-bold text-blue-600 border-b pb-2 mb-4">Dados & Origem</h4>
+            <div class="p-8 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div class="space-y-6">
+                    <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-regular fa-id-card"></i> Dados & Origem</h4>
                     
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Telefone (WhatsApp) *</label>
-                        <input v-model="form.telefone" type="tel" class="w-full p-2 border rounded focus:border-blue-500 outline-none" placeholder="(00) 00000-0000">
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Telefone (WhatsApp) <span class="text-red-500">*</span></label>
+                        <input v-model="form.telefone" type="tel" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition font-medium text-gray-700" placeholder="(00) 00000-0000">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Nome Completo</label>
-                        <input v-model="form.nome" type="text" class="w-full p-2 border rounded outline-none" :class="{'border-red-500 bg-red-50': !form.nome && form.telefone}">
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Nome Completo</label>
+                        <input v-model="form.nome" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition font-medium text-gray-700" :class="{'border-red-300 bg-red-50': !form.nome && form.telefone}">
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-5">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Origem *</label>
-                            <select v-model="form.origem" class="w-full p-2 border rounded bg-white">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Origem <span class="text-red-500">*</span></label>
+                            <select v-model="form.origem" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none font-medium text-gray-700">
                                 <option value="Meta">Meta (Face/Insta)</option>
                                 <option value="Google">Google Ads</option>
                                 <option value="TikTok">TikTok</option>
@@ -376,66 +496,76 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Nome da Campanha</label>
-                            <input v-model="form.campanha" type="text" class="w-full p-2 border rounded" placeholder="Ex: Aposentadoria Jan">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Campanha</label>
+                            <input v-model="form.campanha" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700" placeholder="Ex: Aposentadoria">
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-5">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Cidade</label>
-                            <input v-model="form.cidade" type="text" class="w-full p-2 border rounded" placeholder="Ex: São Paulo">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Cidade</label>
+                            <input v-model="form.cidade" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700" placeholder="Ex: São Paulo">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Estado</label>
-                            <input v-model="form.estado" type="text" class="w-full p-2 border rounded" placeholder="Ex: SP">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Estado (UF)</label>
+                            <input v-model="form.estado" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700" placeholder="Ex: SP">
                         </div>
                     </div>
                     
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Tipo de Benefício (Escrito)</label>
-                        <input v-model="form.beneficio" type="text" class="w-full p-2 border rounded">
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Benefício / Assunto</label>
+                        <input v-model="form.beneficio" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700">
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <h4 class="font-bold text-blue-600 border-b pb-2 mb-4">Gestão & Valores</h4>
+                <div class="space-y-6">
+                    <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-solid fa-chart-line"></i> Gestão & Valores</h4>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Consultor Responsável</label>
-                        <select v-model="form.consultor" class="w-full p-2 border rounded bg-white">
-                            <option value="">Selecione...</option>
-                            <option v-for="nome in listaConsultores" :value="nome">{{ nome }}</option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-5">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Estimado (R$)</label>
-                            <input v-model="form.receitaEstimada" type="number" class="w-full p-2 border rounded text-blue-800 font-bold">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Consultor</label>
+                            <select v-model="form.consultor" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none font-medium text-gray-700">
+                                <option value="">Selecione...</option>
+                                <option v-for="nome in listaConsultores" :value="nome">{{ nome }}</option>
+                            </select>
                         </div>
+                         <!-- NOVO CAMPO: DATA FECHAMENTO -->
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Realizado (R$)</label>
-                            <input v-model="form.receitaRealizada" type="number" class="w-full p-2 border rounded text-green-700 font-bold" :disabled="form.etapa !== 'Recebido (Fechado)'">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Data Fechamento</label>
+                            <input v-model="form.dataFechamento" type="date" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Observações</label>
-                        <textarea v-model="form.obs" rows="3" class="w-full p-2 border rounded text-sm"></textarea>
+                    <div class="grid grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Estimado (R$)</label>
+                            <input v-model="form.receitaEstimada" type="number" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-blue-600 font-bold text-lg outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Realizado (R$)</label>
+                            <input v-model="form.receitaRealizada" type="number" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-green-600 font-bold text-lg outline-none" :disabled="form.etapa !== 'Recebido (Fechado)'">
+                        </div>
                     </div>
 
-                    <div class="bg-yellow-50 p-3 rounded border border-yellow-200 mt-2">
-                        <label class="block text-xs font-bold text-yellow-800 mb-1"><i class="fa-solid fa-crown mr-1"></i> Mensagem do Coordenador</label>
-                        <input v-model="form.msgCoordenador" type="text" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Observações</label>
+                        <textarea v-model="form.obs" rows="3" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none resize-none text-gray-700"></textarea>
+                    </div>
+
+                    <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mt-2 relative">
+                        <label class="block text-xs font-bold text-yellow-800 mb-2 uppercase flex items-center gap-2"><i class="fa-solid fa-crown text-yellow-500"></i> Mensagem do Coordenador</label>
+                        <input v-model="form.msgCoordenador" type="text" class="w-full p-3 border border-yellow-300 rounded-lg bg-white text-sm text-gray-700 placeholder-yellow-200/50" placeholder="Escreva um alerta para o consultor...">
+                        <p class="text-[10px] text-yellow-600 mt-1">*Esta mensagem gera uma notificação para a equipe.</p>
                     </div>
                 </div>
             </div>
 
-            <div class="p-6 border-t bg-gray-50 flex justify-between">
-                <button v-if="editingLead" @click="deleteLead" class="text-red-500 font-bold hover:bg-red-50 px-4 py-2 rounded">Excluir</button>
+            <div class="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                <button v-if="editingLead" @click="deleteLead" class="text-red-500 font-bold hover:bg-red-50 px-6 py-3 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-trash"></i> Excluir Lead</button>
                 <div v-else></div>
-                <button @click="saveLead" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-lg font-bold shadow-lg transition">Salvar</button>
+                <button @click="saveLead" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-1 flex items-center gap-2">
+                    <i class="fa-solid fa-save"></i> Salvar Lead
+                </button>
             </div>
         </div>
     </div>
@@ -448,7 +578,6 @@
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- CONFIGURAÇÃO MANUAL DO USUÁRIO ---
-    // Inserida diretamente no código para garantir conexão "plug-and-play"
     const USER_FIREBASE_CONFIG = {
         apiKey: "AIzaSyC0rXC6dYNhRzth6aa_5qcmavy0Q8wS0nA",
         authDomain: "crm-revive.firebaseapp.com",
@@ -475,6 +604,14 @@
                 errorMessage: '',
                 
                 searchQuery: '',
+                
+                // Filtros de Data
+                filterStartDate: '',
+                filterEndDate: '',
+
+                // Notificações
+                showNotifications: false,
+
                 showModal: false,
                 editingLead: null,
                 leads: [],
@@ -487,7 +624,8 @@
                     cidade: '', estado: '', obs: '', consultor: '',
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
-                    etapa: 'Primeiro Contato', msgCoordenador: ''
+                    etapa: 'Primeiro Contato', msgCoordenador: '',
+                    dataFechamento: '' // Novo campo
                 },
                 toast: { show: false, message: '', icon: '' },
                 cityCache: {}
@@ -507,24 +645,52 @@
                 const titles = {dashboard: 'Dashboard Executivo', pipeline: 'Pipeline de Vendas', mapa: 'Inteligência Geográfica', config: 'Configurações'};
                 return titles[this.view] || 'Revive CRM';
             },
+            // Filtra leads pela busca de texto E data (se aplicada)
             filteredLeads() {
-                if (!this.searchQuery) return this.leads;
-                const term = this.searchQuery.toLowerCase();
-                return this.leads.filter(l => 
-                    (l.nome && l.nome.toLowerCase().includes(term)) || 
-                    (l.telefone && l.telefone.includes(term))
-                );
+                let result = this.leads;
+
+                // Busca por texto
+                if (this.searchQuery) {
+                    const term = this.searchQuery.toLowerCase();
+                    result = result.filter(l => 
+                        (l.nome && l.nome.toLowerCase().includes(term)) || 
+                        (l.telefone && l.telefone.includes(term))
+                    );
+                }
+                return result;
             },
-            totalEstimado() { return this.leads.reduce((acc, l) => acc + (Number(l.receitaEstimada) || 0), 0); },
-            totalRealizado() { return this.leads.filter(l => l.etapa === 'Recebido (Fechado)').reduce((acc, l) => acc + (Number(l.receitaRealizada) || 0), 0); },
+            // Computada específica para o Dashboard que aplica os filtros de data
+            filteredDashboardLeads() {
+                let result = this.leads;
+                
+                if (this.filterStartDate) {
+                    result = result.filter(l => (l.dataCriacao || '').slice(0,10) >= this.filterStartDate);
+                }
+                if (this.filterEndDate) {
+                    result = result.filter(l => (l.dataCriacao || '').slice(0,10) <= this.filterEndDate);
+                }
+                return result;
+            },
+            // Notificações: Leads com mensagem do coordenador
+            unreadNotifications() {
+                // Mostra leads que têm mensagem do coordenador
+                return this.leads.filter(l => l.msgCoordenador && l.msgCoordenador.trim() !== '');
+            },
+            totalEstimado() { return this.filteredDashboardLeads.reduce((acc, l) => acc + (Number(l.receitaEstimada) || 0), 0); },
+            totalRealizado() { 
+                // Para realizado, idealmente usaria dataFechamento se existir, mas vamos simplificar usando a mesma lista filtrada
+                return this.filteredDashboardLeads.filter(l => l.etapa === 'Recebido (Fechado)').reduce((acc, l) => acc + (Number(l.receitaRealizada) || 0), 0); 
+            },
             taxaFechamento() {
-                const fechados = this.leads.filter(l => l.etapa === 'Recebido (Fechado)').length;
-                return this.leads.length ? ((fechados / this.leads.length) * 100).toFixed(1) : 0;
+                const base = this.filteredDashboardLeads;
+                const fechados = base.filter(l => l.etapa === 'Recebido (Fechado)').length;
+                return base.length ? ((fechados / base.length) * 100).toFixed(1) : 0;
             },
             rankingConsultores() {
                 const ranking = {};
                 this.listaConsultores.forEach(c => ranking[c] = { nome: c, leads: 0, fechados: 0, conversao: 0 });
-                this.leads.forEach(l => {
+                // Usa a lista filtrada por data para o ranking também
+                this.filteredDashboardLeads.forEach(l => {
                     if (l.consultor && ranking[l.consultor]) {
                         ranking[l.consultor].leads++;
                         if (l.etapa === 'Recebido (Fechado)') ranking[l.consultor].fechados++;
@@ -553,40 +719,44 @@
                 this.toast = { show: true, message: msg, icon: icon };
                 setTimeout(() => this.toast.show = false, 3000);
             },
+            clearDates() {
+                this.filterStartDate = '';
+                this.filterEndDate = '';
+                this.updateCharts(); // Atualiza gráficos ao limpar
+            },
+            openNotification(lead) {
+                this.showNotifications = false;
+                this.editLead(lead);
+            },
 
             async retryConnection() {
                 this.errorMessage = '';
                 this.dbConnected = false;
                 
-                const config = USER_FIREBASE_CONFIG; // Usa a config hardcoded do usuário
+                const config = USER_FIREBASE_CONFIG;
                 
                 try {
-                    // Inicializa App
-                    try { app = initializeApp(config); } catch(e) { } // Ignora erro se já inicializado
-                    
+                    try { app = initializeApp(config); } catch(e) { } 
                     auth = getAuth(app);
                     db = getFirestore(app);
                     
-                    // LOGIN ANÔNIMO (Requer ativação no Console)
                     await signInAnonymously(auth);
 
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
                             this.connectDB();
                         } else {
-                            this.errorMessage = "Falha na Autenticação Anônima. Verifique o Console Firebase.";
+                            this.errorMessage = "Falha na Autenticação Anônima.";
                         }
                     });
 
                 } catch(e) {
                     this.errorMessage = "Erro de Conexão: " + e.message;
-                    console.error("Erro Firebase:", e);
                 }
             },
 
             connectDB() {
                 try {
-                    // USA COLEÇÃO RAIZ SIMPLIFICADA (Para donos de projeto)
                     const leadsRef = collection(db, 'leads');
                     
                     onSnapshot(leadsRef, (snapshot) => {
@@ -598,12 +768,6 @@
                         if(this.view === 'mapa') this.initMap();
                         
                     }, (error) => {
-                        console.error("Erro DB:", error);
-                        if(error.code === 'permission-denied') {
-                            this.errorMessage = "Permissão Negada! Verifique as REGRAS no Console.";
-                        } else {
-                            this.errorMessage = "Erro Banco: " + error.code;
-                        }
                         this.dbConnected = false;
                     });
                 } catch(e) {
@@ -640,6 +804,7 @@
                     this.mapInstance = null;
                 }
                 
+                // Centraliza no Brasil
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -648,6 +813,7 @@
                 
                 setTimeout(() => { this.mapInstance.invalidateSize(); }, 200);
 
+                // Agrupa por cidade para evitar markers sobrepostos
                 const cityGroups = {};
                 this.leads.forEach(lead => {
                     if(lead.cidade && lead.estado) {
@@ -659,6 +825,8 @@
 
                 for (const [location, leadsInCity] of Object.entries(cityGroups)) {
                     let coords = this.cityCache[location];
+                    
+                    // Geocoding "preguiçoso"
                     if (!coords) {
                         try {
                             let query = `${location}, Brazil`;
@@ -674,48 +842,77 @@
                                 coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
                                 this.cityCache[location] = coords;
                             }
-                        } catch(e) { console.error("Erro mapa", e); }
-                        await new Promise(r => setTimeout(r, 600)); 
+                        } catch(e) { console.error("Erro geocoding", e); }
+                        await new Promise(r => setTimeout(r, 800)); // Delay para respeitar API grátis
                     }
 
                     if (coords) {
                         leadsInCity.forEach(lead => {
+                            // CORRIGIDO: Verde para fechados, Laranja para os demais
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
-                            const color = isClosed ? '#22C55E' : '#F59E0B'; 
+                            const color = isClosed ? '#22C55E' : '#F97316'; // Verde Tailwind ou Laranja Tailwind
                             const marker = L.circleMarker(coords, { radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9 }).addTo(this.mapInstance);
-                            marker.bindPopup(`<div class="text-xs"><strong class="text-sm block mb-1">${lead.nome || 'Sem Nome'}</strong>${lead.cidade} - ${lead.estado}</div>`);
+                            marker.bindPopup(`<div class="text-xs font-sans"><strong class="text-sm block mb-1 text-gray-800">${lead.nome || 'Sem Nome'}</strong>${lead.cidade} - ${lead.estado}<br><span class="${isClosed ? 'text-green-600 font-bold' : 'text-orange-500'}">${lead.etapa}</span></div>`);
                         });
                     }
                 }
             },
 
             updateCharts() {
+                // Gráficos usam os dados filtrados por data
+                const leadsData = this.filteredDashboardLeads;
+
                 const ctxOrigem = document.getElementById('chartOrigem');
                 if(ctxOrigem) {
                     if(this.charts.origem) this.charts.origem.destroy();
                     const origens = {};
-                    this.leads.forEach(l => { const o = l.origem || 'Outros'; origens[o] = (origens[o] || 0) + 1; });
+                    leadsData.forEach(l => { const o = l.origem || 'Outros'; origens[o] = (origens[o] || 0) + 1; });
                     this.charts.origem = new Chart(ctxOrigem, {
                         type: 'doughnut',
                         data: {
                             labels: Object.keys(origens),
-                            datasets: [{ data: Object.values(origens), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'] }]
+                            datasets: [{ 
+                                data: Object.values(origens), 
+                                backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+                                borderWidth: 0
+                            }]
                         },
-                        options: { responsive: true, plugins: { legend: { position: 'right' } } }
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'right', labels: { usePointStyle: true, font: {family: 'Outfit'} } } },
+                            cutout: '70%'
+                        }
                     });
                 }
 
                 const ctxEtapas = document.getElementById('chartEtapas');
                 if(ctxEtapas) {
                     if(this.charts.etapas) this.charts.etapas.destroy();
-                    const data = this.etapas.map(e => this.getLeadsByEtapa(e).length);
+                    // Conta quantos leads estão em cada etapa
+                    const data = this.etapas.map(e => leadsData.filter(l => l.etapa === e).length);
                     this.charts.etapas = new Chart(ctxEtapas, {
                         type: 'bar',
                         data: {
-                            labels: this.etapas.map(e => e.split(' ')[0]),
-                            datasets: [{ label: 'Leads', data: data, backgroundColor: '#2563EB', borderRadius: 5 }]
+                            labels: this.etapas.map(e => e.split(' ')[0]), // Pega só a primeira palavra para o label não ficar gigante
+                            datasets: [{ 
+                                label: 'Leads', 
+                                data: data, 
+                                backgroundColor: '#6366F1', 
+                                borderRadius: 6,
+                                barThickness: 20
+                            }]
                         },
-                        options: { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            indexAxis: 'y', 
+                            plugins: { legend: { display: false } },
+                            scales: { 
+                                x: { beginAtZero: true, grid: { display: false } },
+                                y: { grid: { display: false }, ticks: { font: {family: 'Outfit'} } }
+                            }
+                        }
                     });
                 }
             },
@@ -735,16 +932,28 @@
                 }
 
                 if(lead) {
+                    // Otimista update visual
                     lead.etapa = novaEtapa;
                     if(this.view === 'dashboard') this.updateCharts();
                 }
 
-                if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                if (novaEtapa === 'Recebido (Fechado)') {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#10B981', '#3B82F6'] });
+                    // Se fechar agora e não tiver data, seta data de hoje
+                    if (!lead.dataFechamento) {
+                         const today = new Date().toISOString().split('T')[0];
+                         // Atualiza no banco logo abaixo
+                         lead.dataFechamento = today; 
+                    }
+                }
 
                 if (this.dbConnected) {
                     try {
                         const leadRef = doc(db, 'leads', leadId);
-                        await updateDoc(leadRef, { etapa: novaEtapa });
+                        const updatePayload = { etapa: novaEtapa };
+                        if(lead.dataFechamento) updatePayload.dataFechamento = lead.dataFechamento;
+                        
+                        await updateDoc(leadRef, updatePayload);
                     } catch(e) { 
                         console.error("Erro sync:", e);
                         this.showToast('Erro ao sincronizar: ' + e.message, 'fa-exclamation-triangle');
@@ -758,7 +967,8 @@
                     cidade: '', estado: '', obs: '', consultor: '',
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
-                    etapa: 'Primeiro Contato', msgCoordenador: ''
+                    etapa: 'Primeiro Contato', msgCoordenador: '',
+                    dataFechamento: ''
                 };
                 this.editingLead = null;
                 this.showModal = true;
