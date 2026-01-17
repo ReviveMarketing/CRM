@@ -92,9 +92,17 @@
     <div :class="{'loading-hidden': !loading}" class="loading-overlay">
         <div class="text-center">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-2"></i>
-            <p class="font-bold text-gray-600">Conectando ao Sistema...</p>
-            <p v-if="showSlowMessage" class="text-xs text-red-500 mt-2">A conexão está lenta, aguarde...</p>
+            <p class="font-bold text-gray-600">Carregando Sistema...</p>
+            <p v-if="offlineMode" class="text-sm text-green-600 mt-2 font-bold animate-pulse">
+                Modo Demonstração Ativado (Memória Local)
+            </p>
         </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div v-if="toast.show" class="fixed top-5 right-5 z-50 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3 transition-all duration-500">
+        <i :class="toast.icon" class="text-yellow-400"></i>
+        <span>{{ toast.message }}</span>
     </div>
 
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-lg">
@@ -120,6 +128,11 @@
                 <i class="fa-solid fa-users-gear w-6"></i> Consultores
             </a>
         </nav>
+        
+        <div v-if="offlineMode" class="p-4 bg-yellow-50 border-t border-yellow-200 text-xs text-yellow-800 text-center">
+            <i class="fa-solid fa-wifi-slash mb-1"></i><br>
+            Rodando em Memória
+        </div>
     </aside>
 
     <main class="flex-1 flex flex-col relative overflow-hidden bg-gray-100">
@@ -382,23 +395,23 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Proteção de Configuração (Evita travamento se globais falharem)
-    let firebaseConfig = {};
+    // Configuração segura (fallback automático)
+    let firebaseConfig = null;
     let appId = 'default-app';
-    
+    let db = null;
+    let auth = null;
+
     try {
         if(typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+            
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
         }
-    } catch(e) { console.warn('Config não encontrada, usando fallback'); }
-    
-    // Inicialização segura
-    let app, auth, db;
-    if(firebaseConfig.apiKey) {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
+    } catch(e) { 
+        console.warn('Firebase não inicializado (Modo Offline):', e); 
     }
 
     const { createApp } = Vue;
@@ -408,7 +421,7 @@
             return {
                 view: 'dashboard',
                 loading: true,
-                showSlowMessage: false,
+                offlineMode: false,
                 searchQuery: '',
                 showModal: false,
                 editingLead: null,
@@ -423,11 +436,10 @@
                     receitaEstimada: 0, receitaRealizada: 0,
                     etapa: 'Primeiro Contato', msgCoordenador: ''
                 },
-                // REMOVIDO: mapInstance e charts daqui para evitar erro de reatividade
+                toast: { show: false, message: '', icon: '' },
                 cityCache: {}
             }
         },
-        // Hook para inicializar variáveis não-reativas
         created() {
             this.mapInstance = null;
             this.charts = {};
@@ -467,6 +479,11 @@
             }
         },
         methods: {
+            showToast(msg, icon='fa-check-circle') {
+                this.toast = { show: true, message: msg, icon: icon };
+                setTimeout(() => this.toast.show = false, 3000);
+            },
+
             async changeView(newView) {
                 this.view = newView;
                 await this.$nextTick();
@@ -475,10 +492,16 @@
             },
             
             async initFirebase() {
+                // Se não houver config, vai direto para Offline
                 if(!db) {
-                    this.loading = false;
-                    return; // Modo offline/demo
+                    this.enableOfflineMode("Configuração não detectada.");
+                    return;
                 }
+
+                // Timeout de segurança: Se conectar demorar > 3s, ativa offline
+                const timer = setTimeout(() => {
+                    if (this.loading) this.enableOfflineMode("Conexão lenta.");
+                }, 3000);
 
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -490,20 +513,34 @@
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
                     
                     onSnapshot(leadsRef, (snapshot) => {
+                        clearTimeout(timer);
                         this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         this.loading = false;
-                        this.showSlowMessage = false;
+                        this.offlineMode = false;
                         if(this.view === 'dashboard') this.updateCharts();
                         if(this.view === 'mapa') this.initMap();
                     }, (error) => {
                         console.error("Erro Firestore:", error);
-                        // Em caso de erro, remove loading para não travar
-                        this.loading = false;
+                        this.enableOfflineMode("Erro de acesso.");
                     });
 
                 } catch (error) {
                     console.error("Erro Auth:", error);
-                    this.loading = false;
+                    this.enableOfflineMode("Erro de autenticação.");
+                }
+            },
+
+            enableOfflineMode(razao) {
+                this.loading = false;
+                this.offlineMode = true;
+                this.showToast(`Modo Demonstração (${razao})`, 'fa-wifi-slash');
+                
+                // Dados de exemplo para não ficar vazio
+                if(this.leads.length === 0) {
+                    this.leads = [
+                        { id: '1', nome: 'Cliente Exemplo', telefone: '(11) 99999-9999', cidade: 'São Paulo', estado: 'SP', etapa: 'Negociação', receitaEstimada: 5000, origem: 'Google' }
+                    ];
+                    if(this.view === 'dashboard') this.updateCharts();
                 }
             },
 
@@ -520,7 +557,6 @@
                     this.mapInstance = null;
                 }
                 
-                // Inicializa mapa sem proxy do Vue
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -545,12 +581,12 @@
 
                     if (!coords) {
                         try {
-                            // Tenta busca completa: Cidade, Estado, Brazil
+                            // Tenta busca completa
                             let query = `${location}, Brazil`;
                             let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
                             let data = await response.json();
                             
-                            // Se falhar, tenta só: Cidade, Brazil (Fallback)
+                            // Fallback
                             if (!data || data.length === 0) {
                                 const justCity = location.split(',')[0];
                                 query = `${justCity}, Brazil`;
@@ -563,7 +599,7 @@
                                 this.cityCache[location] = coords;
                             }
                         } catch(e) { console.error("Erro mapa", e); }
-                        await new Promise(r => setTimeout(r, 600)); // Delay seguro
+                        await new Promise(r => setTimeout(r, 600)); 
                     }
 
                     if (coords) {
@@ -650,8 +686,24 @@
             },
             async onDrop(evt, novaEtapa) {
                 const leadId = evt.dataTransfer.getData('leadId');
-                const lead = this.leads.find(l => l.id === leadId);
                 
+                // Lógica Offline
+                if (this.offlineMode) {
+                    const lead = this.leads.find(l => l.id === leadId);
+                    if (lead) {
+                         if (novaEtapa === 'Negociação' && !lead.nome) {
+                            alert("🚫 Preencha o NOME antes de negociar.");
+                            return;
+                        }
+                        lead.etapa = novaEtapa;
+                        if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                        if(this.view === 'dashboard') this.updateCharts(); // Refresh charts
+                    }
+                    return;
+                }
+
+                // Lógica Online (Firebase)
+                const lead = this.leads.find(l => l.id === leadId);
                 if (novaEtapa === 'Negociação' && !lead.nome) {
                     alert("🚫 Preencha o NOME antes de negociar.");
                     return;
@@ -686,48 +738,70 @@
                 this.showModal = true;
             },
             async saveLead() {
-                if (!db) {
-                    alert("Erro: Banco de dados não inicializado. Verifique a conexão.");
-                    return;
-                }
-
                 const data = { ...this.form };
-                delete data.id; // Remove ID do objeto de dados
                 
                 // Tratamento seguro de strings
                 if(data.cidade) data.cidade = data.cidade.toString().trim();
                 if(data.estado) data.estado = data.estado.toString().trim();
+
+                // 1. MODO OFFLINE (MEMÓRIA)
+                if (this.offlineMode) {
+                    if (this.editingLead) {
+                        const index = this.leads.findIndex(l => l.id === this.form.id);
+                        if(index !== -1) this.leads[index] = data;
+                    } else {
+                        data.id = Date.now().toString(); // ID Temporário
+                        this.leads.push(data);
+                    }
+                    this.closeModal();
+                    this.showToast('Salvo na memória (Offline)', 'fa-save');
+                    if(this.view === 'dashboard') this.updateCharts();
+                    return;
+                }
+
+                // 2. MODO ONLINE (FIREBASE)
+                if (!db) { alert("Erro crítico: DB não existe."); return; }
+                
+                delete data.id; // Firestore cria ID auto ou usamos doc ref
                 
                 try {
-                    // Referência da coleção
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
 
                     if (this.editingLead) {
-                        // Edição
-                        if (!this.form.id) throw new Error("ID do cliente inválido para edição.");
+                        if (!this.form.id) throw new Error("ID inválido.");
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
                         await updateDoc(docRef, data);
                     } else {
-                        // Criação
                         data.dataCriacao = new Date().toISOString();
                         await addDoc(leadsRef, data);
                     }
                     this.closeModal();
+                    this.showToast('Salvo com sucesso!', 'fa-cloud-upload');
                 } catch(e) {
-                    console.error("Erro detalhado ao salvar:", e);
-                    // Mostra o erro real para o usuário entender o que houve
-                    alert("Não foi possível salvar: " + e.message);
+                    console.error("Erro ao salvar:", e);
+                    // Fallback para Offline se falhar ao salvar
+                    if(confirm("Erro ao salvar na nuvem. Deseja mudar para modo offline e salvar localmente?")) {
+                         this.enableOfflineMode("Falha no salvamento");
+                         this.saveLead(); // Tenta de novo no modo offline
+                    }
                 }
             },
             async deleteLead() {
-                if(confirm('Excluir lead?')) {
-                    try {
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
-                        await deleteDoc(docRef);
-                        this.closeModal();
-                    } catch(e) {
-                        console.error("Erro ao excluir:", e);
-                    }
+                if(!confirm('Excluir lead?')) return;
+
+                if (this.offlineMode) {
+                    this.leads = this.leads.filter(l => l.id !== this.form.id);
+                    this.closeModal();
+                    if(this.view === 'dashboard') this.updateCharts();
+                    return;
+                }
+
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
+                    await deleteDoc(docRef);
+                    this.closeModal();
+                } catch(e) {
+                    console.error("Erro ao excluir:", e);
                 }
             },
             closeModal() { this.showModal = false; },
@@ -744,15 +818,6 @@
             }
         },
         mounted() {
-            // Fail-safe: Se em 5 segundos não conectar, remove loading
-            setTimeout(() => {
-                if(this.loading) {
-                    this.showSlowMessage = true;
-                    // Força desbloqueio após 8s total
-                    setTimeout(() => { this.loading = false; }, 3000);
-                }
-            }, 5000);
-
             this.initFirebase();
             const saved = localStorage.getItem('revive_consultores');
             if(saved) this.listaConsultores = JSON.parse(saved);
