@@ -58,7 +58,7 @@
             height: 500px;
             width: 100%;
             border-radius: 12px;
-            z-index: 1;
+            z-index: 10; /* Garante que fique acima de outros elementos */
         }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -92,9 +92,9 @@
     <div :class="{'loading-hidden': !loading}" class="loading-overlay">
         <div class="text-center">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-2"></i>
-            <p class="font-bold text-gray-600">Carregando Sistema...</p>
-            <p v-if="offlineMode" class="text-sm text-green-600 mt-2 font-bold animate-pulse">
-                Modo Demonstração Ativado (Memória Local)
+            <p class="font-bold text-gray-600">Sincronizando Dados...</p>
+            <p v-if="offlineMode" class="text-sm text-red-600 mt-2 font-bold">
+                ⚠️ Erro de Conexão: Modo Offline
             </p>
         </div>
     </div>
@@ -129,9 +129,8 @@
             </a>
         </nav>
         
-        <div v-if="offlineMode" class="p-4 bg-yellow-50 border-t border-yellow-200 text-xs text-yellow-800 text-center">
-            <i class="fa-solid fa-wifi-slash mb-1"></i><br>
-            Rodando em Memória
+        <div class="p-4 border-t text-xs text-gray-400 text-center">
+            <i class="fa-solid fa-cloud-check mr-1 text-green-500"></i> Online (Cloud)
         </div>
     </aside>
 
@@ -268,7 +267,11 @@
                             <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span> Em Andamento</span>
                         </div>
                     </div>
-                    <div id="mapContainer" class="flex-1 shadow-inner border border-gray-300"></div>
+                    <div id="mapContainer" class="flex-1 shadow-inner border border-gray-300 bg-gray-200">
+                        <div v-if="!mapInstance" class="flex h-full items-center justify-center text-gray-500">
+                            Carregando mapa...
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -395,15 +398,12 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Configuração segura (fallback automático)
-    let firebaseConfig = null;
-    let appId = 'default-app';
-    let db = null;
-    let auth = null;
-
+    // --- Configuração Segura e Automática ---
+    let db, auth, appId;
+    
     try {
         if(typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
+            const firebaseConfig = JSON.parse(__firebase_config);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
             
             const app = initializeApp(firebaseConfig);
@@ -411,7 +411,7 @@
             db = getFirestore(app);
         }
     } catch(e) { 
-        console.warn('Firebase não inicializado (Modo Offline):', e); 
+        console.error('CRITICAL: Firebase Init Failed', e);
     }
 
     const { createApp } = Vue;
@@ -486,47 +486,50 @@
 
             async changeView(newView) {
                 this.view = newView;
-                await this.$nextTick();
+                await this.$nextTick(); // Garante que o DOM atualizou (v-if)
+                
                 if(newView === 'dashboard') this.updateCharts();
-                if(newView === 'mapa') this.initMap();
+                if(newView === 'mapa') {
+                    // Pequeno delay para garantir que o container do mapa tenha altura definida
+                    setTimeout(() => this.initMap(), 100); 
+                }
             },
             
             async initFirebase() {
-                // Se não houver config, vai direto para Offline
+                // Sem DB configurado, não temos o que fazer a não ser modo offline
                 if(!db) {
-                    this.enableOfflineMode("Configuração não detectada.");
+                    this.enableOfflineMode("Configuração ausente");
                     return;
                 }
 
-                // Timeout de segurança: Se conectar demorar > 3s, ativa offline
-                const timer = setTimeout(() => {
-                    if (this.loading) this.enableOfflineMode("Conexão lenta.");
-                }, 3000);
-
                 try {
+                    // Autenticação (Prioridade 1: Token, Prioridade 2: Anônimo)
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                          await signInAnonymously(auth);
                     }
                     
+                    // Listener em Tempo Real (Pública para colaboração)
+                    // Caminho: artifacts -> {appId} -> public -> data -> leads
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
                     
                     onSnapshot(leadsRef, (snapshot) => {
-                        clearTimeout(timer);
                         this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         this.loading = false;
-                        this.offlineMode = false;
+                        this.offlineMode = false; // Sucesso! Estamos online.
+                        
                         if(this.view === 'dashboard') this.updateCharts();
                         if(this.view === 'mapa') this.initMap();
                     }, (error) => {
                         console.error("Erro Firestore:", error);
-                        this.enableOfflineMode("Erro de acesso.");
+                        // Apenas se falhar DE FATO o listener, vai para offline
+                        this.enableOfflineMode("Erro de permissão/acesso");
                     });
 
                 } catch (error) {
-                    console.error("Erro Auth:", error);
-                    this.enableOfflineMode("Erro de autenticação.");
+                    console.error("Erro Geral Auth/Init:", error);
+                    this.enableOfflineMode("Falha na autenticação");
                 }
             },
 
@@ -534,14 +537,6 @@
                 this.loading = false;
                 this.offlineMode = true;
                 this.showToast(`Modo Demonstração (${razao})`, 'fa-wifi-slash');
-                
-                // Dados de exemplo para não ficar vazio
-                if(this.leads.length === 0) {
-                    this.leads = [
-                        { id: '1', nome: 'Cliente Exemplo', telefone: '(11) 99999-9999', cidade: 'São Paulo', estado: 'SP', etapa: 'Negociação', receitaEstimada: 5000, origem: 'Google' }
-                    ];
-                    if(this.view === 'dashboard') this.updateCharts();
-                }
             },
 
             getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
@@ -550,19 +545,23 @@
             formatMoeda(val) { return Number(val).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); },
             
             async initMap() {
-                if(!document.getElementById('mapContainer')) return;
+                const container = document.getElementById('mapContainer');
+                if(!container) return; // Se não existe, não faz nada
                 
+                // Limpeza segura
                 if (this.mapInstance) {
                     this.mapInstance.remove();
                     this.mapInstance = null;
                 }
                 
+                // Inicialização
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(this.mapInstance);
                 
+                // CRÍTICO: Informa ao Leaflet que o tamanho mudou (pois estava oculto no v-if)
                 this.mapInstance.invalidateSize();
 
                 const cityGroups = {};
@@ -606,8 +605,8 @@
                         leadsInCity.forEach(lead => {
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
                             const color = isClosed ? '#22C55E' : '#F59E0B'; 
-                            const statusLabel = isClosed ? 'FECHADO' : 'EM ANDAMENTO';
-
+                            
+                            // Jitter para não sobrepor
                             const jitterFactor = 0.015;
                             const lat = coords[0] + (Math.random() - 0.5) * jitterFactor;
                             const lon = coords[1] + (Math.random() - 0.5) * jitterFactor;
@@ -624,9 +623,7 @@
                             marker.bindPopup(`
                                 <div class="text-xs">
                                     <strong class="text-sm block mb-1">${lead.nome || 'Sem Nome'}</strong>
-                                    <span style="color:${color}; font-weight:bold">${statusLabel}</span><br>
-                                    ${lead.cidade} - ${lead.estado}<br>
-                                    <span class="text-gray-500">${lead.origem || 'Origem N/A'}</span>
+                                    ${lead.cidade} - ${lead.estado}
                                 </div>
                             `);
                             
@@ -686,29 +683,25 @@
             },
             async onDrop(evt, novaEtapa) {
                 const leadId = evt.dataTransfer.getData('leadId');
-                
-                // Lógica Offline
-                if (this.offlineMode) {
-                    const lead = this.leads.find(l => l.id === leadId);
-                    if (lead) {
-                         if (novaEtapa === 'Negociação' && !lead.nome) {
-                            alert("🚫 Preencha o NOME antes de negociar.");
-                            return;
-                        }
-                        lead.etapa = novaEtapa;
-                        if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                        if(this.view === 'dashboard') this.updateCharts(); // Refresh charts
-                    }
-                    return;
-                }
-
-                // Lógica Online (Firebase)
                 const lead = this.leads.find(l => l.id === leadId);
-                if (novaEtapa === 'Negociação' && !lead.nome) {
+                
+                // Validação de Negócio
+                if (lead && novaEtapa === 'Negociação' && !lead.nome) {
                     alert("🚫 Preencha o NOME antes de negociar.");
                     return;
                 }
 
+                // 1. MODO OFFLINE
+                if (this.offlineMode) {
+                    if(lead) {
+                        lead.etapa = novaEtapa;
+                        if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                        if(this.view === 'dashboard') this.updateCharts();
+                    }
+                    return;
+                }
+
+                // 2. MODO ONLINE
                 try {
                     const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
                     await updateDoc(leadRef, { etapa: novaEtapa });
@@ -739,8 +732,6 @@
             },
             async saveLead() {
                 const data = { ...this.form };
-                
-                // Tratamento seguro de strings
                 if(data.cidade) data.cidade = data.cidade.toString().trim();
                 if(data.estado) data.estado = data.estado.toString().trim();
 
@@ -750,7 +741,7 @@
                         const index = this.leads.findIndex(l => l.id === this.form.id);
                         if(index !== -1) this.leads[index] = data;
                     } else {
-                        data.id = Date.now().toString(); // ID Temporário
+                        data.id = Date.now().toString(); 
                         this.leads.push(data);
                     }
                     this.closeModal();
@@ -760,9 +751,9 @@
                 }
 
                 // 2. MODO ONLINE (FIREBASE)
-                if (!db) { alert("Erro crítico: DB não existe."); return; }
+                if (!db) { alert("Erro crítico: DB desconectado."); return; }
                 
-                delete data.id; // Firestore cria ID auto ou usamos doc ref
+                delete data.id; 
                 
                 try {
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
@@ -779,11 +770,7 @@
                     this.showToast('Salvo com sucesso!', 'fa-cloud-upload');
                 } catch(e) {
                     console.error("Erro ao salvar:", e);
-                    // Fallback para Offline se falhar ao salvar
-                    if(confirm("Erro ao salvar na nuvem. Deseja mudar para modo offline e salvar localmente?")) {
-                         this.enableOfflineMode("Falha no salvamento");
-                         this.saveLead(); // Tenta de novo no modo offline
-                    }
+                    alert("Erro ao salvar: " + e.message);
                 }
             },
             async deleteLead() {
