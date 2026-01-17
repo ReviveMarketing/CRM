@@ -74,7 +74,7 @@
         /* Loading Overlay */
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.95); z-index: 9999;
+            background: rgba(255,255,255,0.98); z-index: 9999;
             display: flex; justify-content: center; align-items: center;
             transition: opacity 0.5s ease;
         }
@@ -82,6 +82,14 @@
             opacity: 0;
             pointer-events: none;
         }
+
+        /* Status Conexão */
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            display: inline-block; margin-right: 6px;
+        }
+        .status-online { background-color: #10B981; box-shadow: 0 0 8px #10B981; }
+        .status-offline { background-color: #EF4444; box-shadow: 0 0 8px #EF4444; }
     </style>
 </head>
 <body>
@@ -91,11 +99,9 @@
     <!-- Loading State -->
     <div :class="{'loading-hidden': !loading}" class="loading-overlay">
         <div class="text-center">
-            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-2"></i>
-            <p class="font-bold text-gray-600">Carregando CRM...</p>
-            <p v-if="offlineMode" class="text-sm text-green-600 mt-2 font-bold animate-pulse">
-                Usando Memória Local (Blindada)
-            </p>
+            <i class="fa-solid fa-cloud-arrow-up fa-bounce text-4xl text-blue-600 mb-4"></i>
+            <h2 class="text-xl font-bold text-gray-800">Conectando ao Servidor...</h2>
+            <p class="text-gray-500 text-sm mt-2">Sincronizando Leads e Equipe</p>
         </div>
     </div>
 
@@ -114,7 +120,17 @@
             </div>
         </div>
 
-        <nav class="flex-1 px-4 space-y-2 mt-4">
+        <div class="px-6 mb-4">
+            <div class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Status da Rede</div>
+            <div class="flex items-center p-2 rounded bg-gray-50 border border-gray-200">
+                <span class="status-dot" :class="offlineMode ? 'status-offline' : 'status-online'"></span>
+                <span class="text-xs font-bold" :class="offlineMode ? 'text-red-600' : 'text-green-600'">
+                    {{ offlineMode ? 'Offline (Local)' : 'Online (Sincronizado)' }}
+                </span>
+            </div>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-2 mt-2">
             <a @click="changeView('dashboard')" :class="{'bg-blue-50 text-blue-700': view === 'dashboard'}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition">
                 <i class="fa-solid fa-chart-pie w-6"></i> Dashboard
             </a>
@@ -128,15 +144,6 @@
                 <i class="fa-solid fa-users-gear w-6"></i> Consultores
             </a>
         </nav>
-        
-        <div class="p-4 border-t text-xs text-center">
-            <div v-if="offlineMode" class="text-green-600 font-bold">
-                <i class="fa-solid fa-save mr-1"></i> Salvo no Navegador
-            </div>
-            <div v-else class="text-blue-500 font-bold">
-                <i class="fa-solid fa-cloud mr-1"></i> Online (Sync)
-            </div>
-        </div>
     </aside>
 
     <main class="flex-1 flex flex-col relative overflow-hidden bg-gray-100">
@@ -403,22 +410,24 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- Configuração Segura e Automática ---
-    let db, auth, appId;
-    let firebaseInitialized = false;
-    
+    // --- CONEXÃO MANUAL E ROBUSTA ---
+    // Tentamos parsear as configs injetadas pelo ambiente.
+    let firebaseConfig = null;
+    let appId = 'default-app';
+    let app, auth, db;
+    let dbReady = false;
+
     try {
         if(typeof __firebase_config !== 'undefined') {
-            const firebaseConfig = JSON.parse(__firebase_config);
+            firebaseConfig = JSON.parse(__firebase_config);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
             
-            const app = initializeApp(firebaseConfig);
+            app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            firebaseInitialized = true;
         }
-    } catch(e) { 
-        console.error('CRITICAL: Firebase Init Failed', e);
+    } catch(e) {
+        console.error("Erro crítico na config inicial:", e);
     }
 
     const { createApp } = Vue;
@@ -450,8 +459,7 @@
         created() {
             this.mapInstance = null;
             this.charts = {};
-            // Carrega dados locais imediatamente para não ficar vazio
-            this.loadLocalData();
+            this.loadLocalData(); // Carrega backup local primeiro
         },
         computed: {
             pageTitle() {
@@ -498,8 +506,7 @@
                 if (localData) {
                     try {
                         this.leads = JSON.parse(localData);
-                        console.log("Dados carregados do LocalStorage");
-                    } catch(e) { console.error("Erro ao ler backup local"); }
+                    } catch(e) { console.error("Erro backup local"); }
                 }
             },
 
@@ -509,59 +516,78 @@
 
             async changeView(newView) {
                 this.view = newView;
-                await this.$nextTick(); // Garante que o DOM atualizou (v-if)
-                
+                await this.$nextTick();
                 if(newView === 'dashboard') this.updateCharts();
-                if(newView === 'mapa') {
-                    // Pequeno delay para garantir que o container do mapa tenha altura definida
-                    setTimeout(() => this.initMap(), 100); 
-                }
+                if(newView === 'mapa') setTimeout(() => this.initMap(), 100); 
             },
             
+            // --- INICIALIZAÇÃO "MANUAL" DO FIREBASE ---
             async initFirebase() {
-                // Se Firebase não inicializou, assume offline imediato
-                if(!firebaseInitialized) {
-                    this.enableOfflineMode("Configuração ausente");
+                if(!db) {
+                    this.enableOfflineMode("Configuração não encontrada");
                     return;
                 }
 
                 try {
-                    // Autenticação (Prioridade 1: Token, Prioridade 2: Anônimo)
+                    // Passo 1: Autenticação Explícita
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                         await signInWithCustomToken(auth, __initial_auth_token);
+                        await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                         await signInAnonymously(auth);
+                        await signInAnonymously(auth);
                     }
-                    
-                    // Listener em Tempo Real (Pública para colaboração)
-                    const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
-                    
-                    onSnapshot(leadsRef, (snapshot) => {
-                        // Mescla dados da nuvem com a estrutura local se necessário
-                        this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                        this.saveLocalData(); // Salva backup local sempre que atualizar da nuvem
-                        this.loading = false;
-                        this.offlineMode = false; // Sucesso! Estamos online.
-                        
-                        if(this.view === 'dashboard') this.updateCharts();
-                        if(this.view === 'mapa') this.initMap();
-                    }, (error) => {
-                        console.error("Erro Firestore:", error);
-                        // Apenas se falhar DE FATO o listener, vai para offline
-                        this.enableOfflineMode("Erro de permissão/acesso");
+
+                    // Passo 2: Listener de Estado (Só conecta no DB se o User estiver OK)
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            console.log("Usuário autenticado:", user.uid);
+                            this.connectToDatabase();
+                        } else {
+                            this.enableOfflineMode("Usuário não autenticado");
+                        }
                     });
 
                 } catch (error) {
-                    console.error("Erro Geral Auth/Init:", error);
-                    this.enableOfflineMode("Falha na autenticação");
+                    console.error("Erro na autenticação:", error);
+                    this.enableOfflineMode("Falha ao logar");
+                }
+            },
+
+            connectToDatabase() {
+                try {
+                    // Passo 3: Conexão Direta ao Firestore
+                    const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
+                    
+                    onSnapshot(leadsRef, (snapshot) => {
+                        this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                        
+                        // SUCESSO: Estamos online e sincronizados!
+                        this.offlineMode = false;
+                        this.loading = false;
+                        dbReady = true;
+                        
+                        // Atualiza backup local
+                        this.saveLocalData();
+
+                        if(this.view === 'dashboard') this.updateCharts();
+                        if(this.view === 'mapa') this.initMap();
+                        
+                    }, (error) => {
+                        console.error("Erro ao ler dados:", error);
+                        // Se der erro de permissão ou conexão aqui, aí sim vamos pro offline
+                        this.enableOfflineMode("Erro de leitura do DB");
+                    });
+                } catch(e) {
+                    console.error("Erro ao montar listener:", e);
+                    this.enableOfflineMode("Erro interno do DB");
                 }
             },
 
             enableOfflineMode(razao) {
                 this.loading = false;
                 this.offlineMode = true;
-                this.loadLocalData(); // Garante que leu o último backup
-                this.showToast(`Modo Local Ativado (${razao})`, 'fa-save');
+                // Mantém os dados locais carregados
+                this.loadLocalData();
+                console.warn(`Modo Offline Ativado: ${razao}`);
             },
 
             getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
@@ -571,22 +597,19 @@
             
             async initMap() {
                 const container = document.getElementById('mapContainer');
-                if(!container) return; // Se não existe, não faz nada
+                if(!container) return;
                 
-                // Limpeza segura
                 if (this.mapInstance) {
                     this.mapInstance.remove();
                     this.mapInstance = null;
                 }
                 
-                // Inicialização
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
                 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap'
                 }).addTo(this.mapInstance);
                 
-                // CRÍTICO: Informa ao Leaflet que o tamanho mudou (pois estava oculto no v-if)
                 this.mapInstance.invalidateSize();
 
                 const cityGroups = {};
@@ -605,12 +628,10 @@
 
                     if (!coords) {
                         try {
-                            // Tenta busca completa
                             let query = `${location}, Brazil`;
                             let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
                             let data = await response.json();
                             
-                            // Fallback
                             if (!data || data.length === 0) {
                                 const justCity = location.split(',')[0];
                                 query = `${justCity}, Brazil`;
@@ -631,7 +652,6 @@
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
                             const color = isClosed ? '#22C55E' : '#F59E0B'; 
                             
-                            // Jitter para não sobrepor
                             const jitterFactor = 0.015;
                             const lat = coords[0] + (Math.random() - 0.5) * jitterFactor;
                             const lon = coords[1] + (Math.random() - 0.5) * jitterFactor;
@@ -710,29 +730,30 @@
                 const leadId = evt.dataTransfer.getData('leadId');
                 const lead = this.leads.find(l => l.id === leadId);
                 
-                // Validação de Negócio
                 if (lead && novaEtapa === 'Negociação' && !lead.nome) {
                     alert("🚫 Preencha o NOME antes de negociar.");
                     return;
                 }
 
-                // Atualiza localmente imediatamente para sensação de rapidez
+                // Atualização Otimista (Visual Imediato)
                 if(lead) {
                     lead.etapa = novaEtapa;
-                    this.saveLocalData();
                     if(this.view === 'dashboard') this.updateCharts();
                 }
 
                 if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
-                // Tenta persistir na nuvem se online
-                if (!this.offlineMode && firebaseInitialized) {
+                // Sincronização
+                if (!this.offlineMode && dbReady) {
                     try {
                         const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
                         await updateDoc(leadRef, { etapa: novaEtapa });
                     } catch(e) {
-                        console.error("Erro ao mover card na nuvem (salvo localmente):", e);
+                        console.error("Erro ao sincronizar movimento:", e);
+                        this.saveLocalData(); // Fallback
                     }
+                } else {
+                    this.saveLocalData();
                 }
             },
 
@@ -757,21 +778,21 @@
                 if(data.cidade) data.cidade = data.cidade.toString().trim();
                 if(data.estado) data.estado = data.estado.toString().trim();
 
-                // 1. SALVAR LOCALMENTE (GARANTIA)
+                // 1. Atualização Local (Imediata)
                 if (this.editingLead) {
                     const index = this.leads.findIndex(l => l.id === this.form.id);
                     if(index !== -1) this.leads[index] = data;
                 } else {
+                    // ID Temporário (será substituído pelo do Firebase se online)
                     if(!data.id) data.id = Date.now().toString(); 
                     this.leads.push(data);
                 }
-                this.saveLocalData();
                 this.closeModal();
 
-                // 2. TENTAR SALVAR NA NUVEM
-                if (!this.offlineMode && firebaseInitialized) {
+                // 2. Sincronização Online
+                if (!this.offlineMode && dbReady) {
                     const cloudData = {...data};
-                    delete cloudData.id; // Firestore gerencia ID ou usamos referência
+                    delete cloudData.id; // Deixa o Firestore cuidar do ID ou usamos referência
                     
                     try {
                         const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
@@ -781,21 +802,17 @@
                             await updateDoc(docRef, cloudData);
                         } else {
                             cloudData.dataCriacao = new Date().toISOString();
-                            // Se criamos um ID local, usamos ele para manter consistência ou deixamos o Firestore criar?
-                            // Melhor deixar o Firestore e atualizar depois, mas para simplificar aqui:
-                            // Vamos adicionar como novo doc e depois atualizar o ID local se precisar (complexo)
-                            // Abordagem simples: AddDoc
                             await addDoc(leadsRef, cloudData);
-                            // Nota: Isso vai criar duplicidade visual momentânea até o snapshot voltar, 
-                            // mas garante consistência. O ideal seria usar setDoc com ID gerado.
                         }
-                        this.showToast('Sincronizado na Nuvem!', 'fa-cloud-upload');
+                        this.showToast('Sincronizado!', 'fa-cloud-upload');
                     } catch(e) {
-                        console.error("Erro nuvem:", e);
-                        this.showToast('Salvo apenas no PC (Erro Nuvem)', 'fa-save');
+                        console.error("Erro ao salvar na nuvem:", e);
+                        this.saveLocalData();
+                        this.showToast('Salvo Localmente (Erro Nuvem)', 'fa-save');
                     }
                 } else {
-                    this.showToast('Salvo no Navegador (Offline)', 'fa-save');
+                    this.saveLocalData();
+                    this.showToast('Salvo Localmente', 'fa-save');
                 }
                 
                 if(this.view === 'dashboard') this.updateCharts();
@@ -803,19 +820,22 @@
             async deleteLead() {
                 if(!confirm('Excluir lead?')) return;
 
-                // Remove localmente
-                this.leads = this.leads.filter(l => l.id !== this.form.id);
-                this.saveLocalData();
+                const idParaDeletar = this.form.id;
+
+                // Remove local
+                this.leads = this.leads.filter(l => l.id !== idParaDeletar);
                 this.closeModal();
 
-                // Remove da nuvem
-                if (!this.offlineMode && firebaseInitialized) {
+                if (!this.offlineMode && dbReady) {
                     try {
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', idParaDeletar);
                         await deleteDoc(docRef);
                     } catch(e) {
                         console.error("Erro ao excluir na nuvem:", e);
+                        this.saveLocalData();
                     }
+                } else {
+                    this.saveLocalData();
                 }
                 
                 if(this.view === 'dashboard') this.updateCharts();
