@@ -686,26 +686,37 @@
                 this.showModal = true;
             },
             async saveLead() {
+                if (!db) {
+                    alert("Erro: Banco de dados não inicializado. Verifique a conexão.");
+                    return;
+                }
+
                 const data = { ...this.form };
-                delete data.id;
+                delete data.id; // Remove ID do objeto de dados
                 
-                if(data.cidade) data.cidade = data.cidade.trim();
-                if(data.estado) data.estado = data.estado.trim();
+                // Tratamento seguro de strings
+                if(data.cidade) data.cidade = data.cidade.toString().trim();
+                if(data.estado) data.estado = data.estado.toString().trim();
                 
                 try {
+                    // Referência da coleção
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
 
                     if (this.editingLead) {
+                        // Edição
+                        if (!this.form.id) throw new Error("ID do cliente inválido para edição.");
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
                         await updateDoc(docRef, data);
                     } else {
+                        // Criação
                         data.dataCriacao = new Date().toISOString();
                         await addDoc(leadsRef, data);
                     }
                     this.closeModal();
                 } catch(e) {
-                    console.error("Erro ao salvar:", e);
-                    alert("Erro ao salvar dados.");
+                    console.error("Erro detalhado ao salvar:", e);
+                    // Mostra o erro real para o usuário entender o que houve
+                    alert("Não foi possível salvar: " + e.message);
                 }
             },
             async deleteLead() {
