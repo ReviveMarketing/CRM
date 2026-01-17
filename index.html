@@ -74,8 +74,13 @@
         /* Loading Overlay */
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.8); z-index: 9999;
+            background: rgba(255,255,255,0.95); z-index: 9999;
             display: flex; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        .loading-hidden {
+            opacity: 0;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -84,10 +89,11 @@
 <div id="app" class="flex h-screen overflow-hidden">
     
     <!-- Loading State -->
-    <div v-if="loading" class="loading-overlay">
+    <div :class="{'loading-hidden': !loading}" class="loading-overlay">
         <div class="text-center">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-2"></i>
             <p class="font-bold text-gray-600">Conectando ao Sistema...</p>
+            <p v-if="showSlowMessage" class="text-xs text-red-500 mt-2">A conexão está lenta, aguarde...</p>
         </div>
     </div>
 
@@ -376,14 +382,24 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Configuração automática do ambiente
-    const firebaseConfig = JSON.parse(__firebase_config);
-    const appId = __app_id || 'default-app';
+    // Proteção de Configuração (Evita travamento se globais falharem)
+    let firebaseConfig = {};
+    let appId = 'default-app';
     
-    // Inicialização
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    try {
+        if(typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        }
+    } catch(e) { console.warn('Config não encontrada, usando fallback'); }
+    
+    // Inicialização segura
+    let app, auth, db;
+    if(firebaseConfig.apiKey) {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+    }
 
     const { createApp } = Vue;
 
@@ -392,6 +408,7 @@
             return {
                 view: 'dashboard',
                 loading: true,
+                showSlowMessage: false,
                 searchQuery: '',
                 showModal: false,
                 editingLead: null,
@@ -458,6 +475,11 @@
             },
             
             async initFirebase() {
+                if(!db) {
+                    this.loading = false;
+                    return; // Modo offline/demo
+                }
+
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          await signInWithCustomToken(auth, __initial_auth_token);
@@ -470,10 +492,12 @@
                     onSnapshot(leadsRef, (snapshot) => {
                         this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         this.loading = false;
+                        this.showSlowMessage = false;
                         if(this.view === 'dashboard') this.updateCharts();
                         if(this.view === 'mapa') this.initMap();
                     }, (error) => {
                         console.error("Erro Firestore:", error);
+                        // Em caso de erro, remove loading para não travar
                         this.loading = false;
                     });
 
@@ -709,6 +733,15 @@
             }
         },
         mounted() {
+            // Fail-safe: Se em 5 segundos não conectar, remove loading
+            setTimeout(() => {
+                if(this.loading) {
+                    this.showSlowMessage = true;
+                    // Força desbloqueio após 8s total
+                    setTimeout(() => { this.loading = false; }, 3000);
+                }
+            }, 5000);
+
             this.initFirebase();
             const saved = localStorage.getItem('revive_consultores');
             if(saved) this.listaConsultores = JSON.parse(saved);
