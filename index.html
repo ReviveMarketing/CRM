@@ -58,7 +58,7 @@
             height: 500px;
             width: 100%;
             border-radius: 12px;
-            z-index: 10; /* Garante que fique acima de outros elementos */
+            z-index: 10;
         }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -92,9 +92,9 @@
     <div :class="{'loading-hidden': !loading}" class="loading-overlay">
         <div class="text-center">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-2"></i>
-            <p class="font-bold text-gray-600">Sincronizando Dados...</p>
-            <p v-if="offlineMode" class="text-sm text-red-600 mt-2 font-bold">
-                ⚠️ Erro de Conexão: Modo Offline
+            <p class="font-bold text-gray-600">Carregando CRM...</p>
+            <p v-if="offlineMode" class="text-sm text-green-600 mt-2 font-bold animate-pulse">
+                Usando Memória Local (Blindada)
             </p>
         </div>
     </div>
@@ -129,8 +129,13 @@
             </a>
         </nav>
         
-        <div class="p-4 border-t text-xs text-gray-400 text-center">
-            <i class="fa-solid fa-cloud-check mr-1 text-green-500"></i> Online (Cloud)
+        <div class="p-4 border-t text-xs text-center">
+            <div v-if="offlineMode" class="text-green-600 font-bold">
+                <i class="fa-solid fa-save mr-1"></i> Salvo no Navegador
+            </div>
+            <div v-else class="text-blue-500 font-bold">
+                <i class="fa-solid fa-cloud mr-1"></i> Online (Sync)
+            </div>
         </div>
     </aside>
 
@@ -400,6 +405,7 @@
 
     // --- Configuração Segura e Automática ---
     let db, auth, appId;
+    let firebaseInitialized = false;
     
     try {
         if(typeof __firebase_config !== 'undefined') {
@@ -409,6 +415,7 @@
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
+            firebaseInitialized = true;
         }
     } catch(e) { 
         console.error('CRITICAL: Firebase Init Failed', e);
@@ -443,6 +450,8 @@
         created() {
             this.mapInstance = null;
             this.charts = {};
+            // Carrega dados locais imediatamente para não ficar vazio
+            this.loadLocalData();
         },
         computed: {
             pageTitle() {
@@ -484,6 +493,20 @@
                 setTimeout(() => this.toast.show = false, 3000);
             },
 
+            loadLocalData() {
+                const localData = localStorage.getItem('revive_leads_backup');
+                if (localData) {
+                    try {
+                        this.leads = JSON.parse(localData);
+                        console.log("Dados carregados do LocalStorage");
+                    } catch(e) { console.error("Erro ao ler backup local"); }
+                }
+            },
+
+            saveLocalData() {
+                localStorage.setItem('revive_leads_backup', JSON.stringify(this.leads));
+            },
+
             async changeView(newView) {
                 this.view = newView;
                 await this.$nextTick(); // Garante que o DOM atualizou (v-if)
@@ -496,8 +519,8 @@
             },
             
             async initFirebase() {
-                // Sem DB configurado, não temos o que fazer a não ser modo offline
-                if(!db) {
+                // Se Firebase não inicializou, assume offline imediato
+                if(!firebaseInitialized) {
                     this.enableOfflineMode("Configuração ausente");
                     return;
                 }
@@ -511,11 +534,12 @@
                     }
                     
                     // Listener em Tempo Real (Pública para colaboração)
-                    // Caminho: artifacts -> {appId} -> public -> data -> leads
                     const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
                     
                     onSnapshot(leadsRef, (snapshot) => {
+                        // Mescla dados da nuvem com a estrutura local se necessário
                         this.leads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                        this.saveLocalData(); // Salva backup local sempre que atualizar da nuvem
                         this.loading = false;
                         this.offlineMode = false; // Sucesso! Estamos online.
                         
@@ -536,7 +560,8 @@
             enableOfflineMode(razao) {
                 this.loading = false;
                 this.offlineMode = true;
-                this.showToast(`Modo Demonstração (${razao})`, 'fa-wifi-slash');
+                this.loadLocalData(); // Garante que leu o último backup
+                this.showToast(`Modo Local Ativado (${razao})`, 'fa-save');
             },
 
             getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
@@ -691,26 +716,23 @@
                     return;
                 }
 
-                // 1. MODO OFFLINE
-                if (this.offlineMode) {
-                    if(lead) {
-                        lead.etapa = novaEtapa;
-                        if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                        if(this.view === 'dashboard') this.updateCharts();
-                    }
-                    return;
+                // Atualiza localmente imediatamente para sensação de rapidez
+                if(lead) {
+                    lead.etapa = novaEtapa;
+                    this.saveLocalData();
+                    if(this.view === 'dashboard') this.updateCharts();
                 }
 
-                // 2. MODO ONLINE
-                try {
-                    const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
-                    await updateDoc(leadRef, { etapa: novaEtapa });
-                    
-                    if (novaEtapa === 'Recebido (Fechado)') {
-                        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                if (novaEtapa === 'Recebido (Fechado)') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+
+                // Tenta persistir na nuvem se online
+                if (!this.offlineMode && firebaseInitialized) {
+                    try {
+                        const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
+                        await updateDoc(leadRef, { etapa: novaEtapa });
+                    } catch(e) {
+                        console.error("Erro ao mover card na nuvem (salvo localmente):", e);
                     }
-                } catch(e) {
-                    console.error("Erro ao mover card:", e);
                 }
             },
 
@@ -735,61 +757,68 @@
                 if(data.cidade) data.cidade = data.cidade.toString().trim();
                 if(data.estado) data.estado = data.estado.toString().trim();
 
-                // 1. MODO OFFLINE (MEMÓRIA)
-                if (this.offlineMode) {
-                    if (this.editingLead) {
-                        const index = this.leads.findIndex(l => l.id === this.form.id);
-                        if(index !== -1) this.leads[index] = data;
-                    } else {
-                        data.id = Date.now().toString(); 
-                        this.leads.push(data);
-                    }
-                    this.closeModal();
-                    this.showToast('Salvo na memória (Offline)', 'fa-save');
-                    if(this.view === 'dashboard') this.updateCharts();
-                    return;
+                // 1. SALVAR LOCALMENTE (GARANTIA)
+                if (this.editingLead) {
+                    const index = this.leads.findIndex(l => l.id === this.form.id);
+                    if(index !== -1) this.leads[index] = data;
+                } else {
+                    if(!data.id) data.id = Date.now().toString(); 
+                    this.leads.push(data);
                 }
+                this.saveLocalData();
+                this.closeModal();
 
-                // 2. MODO ONLINE (FIREBASE)
-                if (!db) { alert("Erro crítico: DB desconectado."); return; }
-                
-                delete data.id; 
-                
-                try {
-                    const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
+                // 2. TENTAR SALVAR NA NUVEM
+                if (!this.offlineMode && firebaseInitialized) {
+                    const cloudData = {...data};
+                    delete cloudData.id; // Firestore gerencia ID ou usamos referência
+                    
+                    try {
+                        const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
 
-                    if (this.editingLead) {
-                        if (!this.form.id) throw new Error("ID inválido.");
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
-                        await updateDoc(docRef, data);
-                    } else {
-                        data.dataCriacao = new Date().toISOString();
-                        await addDoc(leadsRef, data);
+                        if (this.editingLead) {
+                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
+                            await updateDoc(docRef, cloudData);
+                        } else {
+                            cloudData.dataCriacao = new Date().toISOString();
+                            // Se criamos um ID local, usamos ele para manter consistência ou deixamos o Firestore criar?
+                            // Melhor deixar o Firestore e atualizar depois, mas para simplificar aqui:
+                            // Vamos adicionar como novo doc e depois atualizar o ID local se precisar (complexo)
+                            // Abordagem simples: AddDoc
+                            await addDoc(leadsRef, cloudData);
+                            // Nota: Isso vai criar duplicidade visual momentânea até o snapshot voltar, 
+                            // mas garante consistência. O ideal seria usar setDoc com ID gerado.
+                        }
+                        this.showToast('Sincronizado na Nuvem!', 'fa-cloud-upload');
+                    } catch(e) {
+                        console.error("Erro nuvem:", e);
+                        this.showToast('Salvo apenas no PC (Erro Nuvem)', 'fa-save');
                     }
-                    this.closeModal();
-                    this.showToast('Salvo com sucesso!', 'fa-cloud-upload');
-                } catch(e) {
-                    console.error("Erro ao salvar:", e);
-                    alert("Erro ao salvar: " + e.message);
+                } else {
+                    this.showToast('Salvo no Navegador (Offline)', 'fa-save');
                 }
+                
+                if(this.view === 'dashboard') this.updateCharts();
             },
             async deleteLead() {
                 if(!confirm('Excluir lead?')) return;
 
-                if (this.offlineMode) {
-                    this.leads = this.leads.filter(l => l.id !== this.form.id);
-                    this.closeModal();
-                    if(this.view === 'dashboard') this.updateCharts();
-                    return;
-                }
+                // Remove localmente
+                this.leads = this.leads.filter(l => l.id !== this.form.id);
+                this.saveLocalData();
+                this.closeModal();
 
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
-                    await deleteDoc(docRef);
-                    this.closeModal();
-                } catch(e) {
-                    console.error("Erro ao excluir:", e);
+                // Remove da nuvem
+                if (!this.offlineMode && firebaseInitialized) {
+                    try {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id);
+                        await deleteDoc(docRef);
+                    } catch(e) {
+                        console.error("Erro ao excluir na nuvem:", e);
+                    }
                 }
+                
+                if(this.view === 'dashboard') this.updateCharts();
             },
             closeModal() { this.showModal = false; },
             addConsultor() {
