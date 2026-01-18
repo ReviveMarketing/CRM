@@ -17,59 +17,46 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #F3F4F6; color: #1F2937; }
+        body { font-family: 'Outfit', sans-serif; background-color: #F8FAFC; color: #1E293B; }
         
         /* Estilo Futurista & Elegante */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.90);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05);
+            border-radius: 24px;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         .glass-panel:hover {
-            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12);
+            box-shadow: 0 20px 50px -10px rgba(37, 99, 235, 0.1);
         }
 
         .kanban-col {
             min-height: 500px;
             background: #F1F5F9;
-            border-radius: 16px;
+            border-radius: 20px;
             border: 1px solid #E2E8F0;
         }
 
         .card-lead {
             background: white;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: grab;
-            border-left: 4px solid transparent;
+            border: 1px solid transparent;
             position: relative;
             overflow: hidden;
-        }
-        .card-lead::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-            transform: translateX(-100%);
-            transition: 0.5s;
         }
         .card-lead:hover { 
             transform: translateY(-4px); 
             box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1); 
+            border-color: #BFDBFE;
         }
-        .card-lead:hover::after { transform: translateX(100%); }
         .card-lead:active { cursor: grabbing; }
 
         .incomplete-lead {
             border: 2px solid #EF4444 !important;
             animation: pulse-red 2s infinite;
-        }
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
         /* Mapa Real - FULL */
@@ -78,10 +65,11 @@
             width: 100%;
             height: 100%;
             min-height: 600px;
-            border-radius: 16px;
+            border-radius: 24px;
             overflow: hidden;
             z-index: 1;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            border: 1px solid #E2E8F0;
         }
         #mapContainer {
             width: 100%;
@@ -91,184 +79,182 @@
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #94A3B8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
 
         .btn-future {
-            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
         }
         .btn-future:hover { 
             transform: translateY(-2px); 
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); 
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #EF4444;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            box-shadow: 0 0 0 2px white;
-            animation: bounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes bounce {
-            0% { transform: scale(0); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); 
         }
 
+        /* Chat Styles */
+        .chat-bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            position: relative;
+            max-width: 90%;
+        }
+        .chat-coord {
+            background-color: #EFF6FF;
+            color: #1E40AF;
+            border-bottom-left-radius: 2px;
+            margin-right: auto;
+        }
+        .chat-vendedor {
+            background-color: #F0FDF4;
+            color: #166534;
+            border-bottom-right-radius: 2px;
+            margin-left: auto;
+            text-align: right;
+        }
+        
         /* Loading & Overlay */
         .fullscreen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #F3F4F6; z-index: 9999;
+            background: #F8FAFC; z-index: 9999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 0.5s ease;
         }
+        
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
 <body>
 
-<div id="app" class="flex h-screen overflow-hidden">
+<div id="app" class="flex h-screen overflow-hidden text-slate-800">
     
     <!-- Tela de Login / Sala -->
     <div v-if="!salaAtual" class="fullscreen-overlay">
-        <div class="glass-panel p-10 text-center max-w-md w-full shadow-2xl relative">
-            
-            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl flex items-center justify-center text-white font-bold text-4xl mx-auto mb-6 shadow-blue-500/50 shadow-lg">R</div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2 tracking-tight">Revive CRM</h1>
-            <p class="text-gray-500 mb-8 font-light">Inteligência Comercial & Jurídica</p>
+        <div class="glass-panel p-12 text-center max-w-md w-full shadow-2xl relative">
+            <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center text-white font-bold text-4xl mx-auto mb-6 shadow-xl shadow-blue-200">R</div>
+            <h1 class="text-3xl font-extrabold text-slate-800 mb-2 tracking-tight">Revive CRM</h1>
+            <p class="text-slate-500 mb-10 font-medium">Inteligência Comercial & Jurídica</p>
             
             <div class="text-left mb-6">
-                <label class="text-xs font-bold text-gray-500 uppercase ml-1 tracking-widest">Acessar Sala</label>
-                <div class="relative mt-2">
-                    <i class="fa-solid fa-layer-group absolute left-4 top-3.5 text-blue-400"></i>
-                    <input v-model="salaInput" @keyup.enter="entrarSala" type="text" placeholder="NOME DA EQUIPE" class="w-full pl-12 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition uppercase font-bold text-gray-700 tracking-wide">
+                <label class="text-xs font-bold text-slate-400 uppercase ml-1 tracking-widest">Acessar Sala</label>
+                <div class="relative mt-2 group">
+                    <i class="fa-solid fa-layer-group absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition"></i>
+                    <input v-model="salaInput" @keyup.enter="entrarSala" type="text" placeholder="NOME DA EQUIPE" class="w-full pl-12 p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition uppercase font-bold text-slate-700 tracking-wide">
                 </div>
             </div>
 
-            <button @click="entrarSala" :disabled="!salaInput" class="w-full btn-future text-white py-3.5 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                Entrar no Sistema <i class="fa-solid fa-arrow-right"></i>
+            <button @click="entrarSala" :disabled="!salaInput" class="w-full btn-future text-white py-4 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                Acessar Sistema <i class="fa-solid fa-arrow-right"></i>
             </button>
         </div>
     </div>
 
     <!-- Toast Notification -->
-    <div v-if="toast.show" class="fixed top-5 right-5 z-50 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 transition-all duration-500 transform translate-y-0 border-l-4 border-blue-500">
+    <div v-if="toast.show" class="fixed top-6 right-6 z-50 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 transition-all duration-500 transform translate-y-0 border-l-4 border-blue-500">
         <i :class="toast.icon" class="text-blue-400 text-xl"></i>
         <span class="font-medium">{{ toast.message }}</span>
     </div>
 
-    <aside v-if="salaAtual" class="w-72 bg-white border-r border-gray-200 flex flex-col z-20 shadow-xl">
+    <aside v-if="salaAtual" class="w-72 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl">
         <div class="p-8 flex items-center gap-4">
-            <div class="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">R</div>
+            <div class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">R</div>
             <div>
-                <h1 class="font-bold text-lg tracking-widest text-gray-800">REVIVE</h1>
-                <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Assessoria</p>
+                <h1 class="font-bold text-base tracking-widest text-slate-800">REVIVE</h1>
+                <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Jurídico</p>
             </div>
         </div>
 
         <div class="px-6 mb-6">
-            <div class="p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 shadow-inner">
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 <div class="flex justify-between items-start mb-2">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Sala Atual</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sala Conectada</span>
                     <button @click="sairSala" class="text-xs text-red-400 hover:text-red-600 transition" title="Sair"><i class="fa-solid fa-power-off"></i></button>
                 </div>
-                <div class="font-black text-gray-700 text-lg truncate flex items-center gap-2">
+                <div class="font-black text-slate-700 text-lg truncate flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                     {{ salaAtual }}
                 </div>
             </div>
         </div>
 
-        <nav class="flex-1 px-4 space-y-3">
-            <a @click="changeView('dashboard')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'dashboard'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group">
+        <nav class="flex-1 px-4 space-y-2">
+            <a @click="changeView('dashboard')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'dashboard'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group">
                 <i class="fa-solid fa-chart-pie w-5 transition group-hover:scale-110"></i> 
-                <span class="font-semibold">Dashboard</span>
+                <span class="font-semibold text-sm">Dashboard</span>
             </a>
-            <a @click="changeView('pipeline')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'pipeline'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group">
+            <a @click="changeView('pipeline')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'pipeline'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group">
                 <i class="fa-solid fa-trello w-5 transition group-hover:scale-110"></i> 
-                <span class="font-semibold">Pipeline</span>
+                <span class="font-semibold text-sm">Pipeline</span>
             </a>
-            <a @click="changeView('mapa')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'mapa'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group">
+            <a @click="changeView('mapa')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'mapa'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group">
                 <i class="fa-solid fa-map-location-dot w-5 transition group-hover:scale-110"></i> 
-                <span class="font-semibold">Geolocalização</span>
+                <span class="font-semibold text-sm">Geolocalização</span>
             </a>
             
             <!-- Notificações -->
             <div class="relative">
-                <a @click="showNotifications = !showNotifications" :class="{'bg-blue-50 text-blue-700': showNotifications}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group justify-between">
+                <a @click="showNotifications = !showNotifications" :class="{'bg-blue-50 text-blue-700': showNotifications}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group justify-between">
                     <div class="flex items-center gap-4">
-                        <i class="fa-solid fa-bell w-5 transition group-hover:scale-110"></i> 
-                        <span class="font-semibold">Notificações</span>
+                        <i class="fa-solid fa-bell w-5 transition group-hover:scale-110" :class="{'animate-swing text-red-500': unreadNotifications.length > 0}"></i> 
+                        <span class="font-semibold text-sm">Alertas</span>
                     </div>
-                    <span v-if="unreadNotifications.length > 0" class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-red-200">
+                    <span v-if="unreadNotifications.length > 0" class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-red-200">
                         {{ unreadNotifications.length }}
                     </span>
                 </a>
                 
-                <!-- Dropdown de Notificações -->
-                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-2 space-y-1">
-                    <div v-if="unreadNotifications.length === 0" class="text-center text-gray-400 py-4 text-xs">
-                        Nenhuma nova mensagem.
+                <!-- Dropdown -->
+                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 p-2 space-y-1">
+                    <div v-if="unreadNotifications.length === 0" class="text-center text-slate-400 py-4 text-xs">
+                        Tudo limpo por aqui!
                     </div>
-                    <div v-for="notif in unreadNotifications" :key="notif.id" @click="openNotification(notif)" class="p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition border-b border-gray-50 last:border-0">
+                    <div v-for="notif in unreadNotifications" :key="notif.id" @click="openNotification(notif)" class="p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition border-b border-slate-50 last:border-0">
                         <div class="flex justify-between items-start mb-1">
                             <span class="font-bold text-xs text-blue-600 truncate w-2/3">{{ notif.nome || 'Lead sem nome' }}</span>
-                            <span class="text-[10px] text-gray-400"><i class="fa-solid fa-crown text-yellow-500 mr-1"></i>Coord.</span>
+                            <span class="text-[10px] text-yellow-600 bg-yellow-100 px-1 rounded">Coord</span>
                         </div>
-                        <p class="text-xs text-gray-600 line-clamp-2 italic">"{{ notif.msgCoordenador }}"</p>
+                        <p class="text-xs text-slate-500 line-clamp-2 italic">Nova mensagem pendente...</p>
                     </div>
                 </div>
             </div>
 
-            <a @click="changeView('config')" :class="{'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100': view === 'config'}" class="flex items-center gap-4 p-4 rounded-2xl cursor-pointer hover:bg-gray-50 transition group mt-auto">
+            <a @click="changeView('config')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'config'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group mt-auto">
                 <i class="fa-solid fa-users-gear w-5 transition group-hover:scale-110"></i> 
-                <span class="font-semibold">Consultores</span>
+                <span class="font-semibold text-sm">Equipe</span>
             </a>
         </nav>
-        
-        <div class="p-4 text-center">
-             <div class="text-[10px] text-gray-400 font-medium">
-                Conexão: <span :class="dbConnected ? 'text-green-500' : 'text-red-500'">{{ dbConnected ? 'Online' : 'Offline' }}</span>
-            </div>
-        </div>
     </aside>
 
-    <main v-if="salaAtual" class="flex-1 flex flex-col relative overflow-hidden bg-gray-50">
+    <main v-if="salaAtual" class="flex-1 flex flex-col relative overflow-hidden bg-slate-50/50">
         
-        <header class="h-20 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between px-10 z-10 sticky top-0">
+        <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-10 z-10 sticky top-0">
             <div>
-                <h2 class="text-2xl font-bold text-gray-800">{{ pageTitle }}</h2>
-                <p class="text-xs text-gray-500 font-medium mt-0.5">{{ new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) }}</p>
+                <h2 class="text-2xl font-bold text-slate-800">{{ pageTitle }}</h2>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    <p class="text-xs text-slate-400 font-medium">Sistema Operacional</p>
+                </div>
             </div>
             
             <div class="flex items-center gap-6">
-                <!-- Filtros de Data para Dashboard -->
-                <div v-if="view === 'dashboard'" class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                    <div class="flex items-center px-3 gap-2 border-r border-gray-100">
-                        <span class="text-xs font-bold text-gray-400 uppercase">De</span>
-                        <input type="date" v-model="filterStartDate" class="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer">
+                <!-- Filtros Data -->
+                <div v-if="view === 'dashboard'" class="hidden md:flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm">
+                    <div class="flex items-center px-3 gap-2 border-r border-slate-100">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Início</span>
+                        <input type="date" v-model="filterStartDate" class="text-xs font-bold text-slate-600 bg-transparent outline-none cursor-pointer">
                     </div>
                     <div class="flex items-center px-3 gap-2">
-                        <span class="text-xs font-bold text-gray-400 uppercase">Até</span>
-                        <input type="date" v-model="filterEndDate" class="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Fim</span>
+                        <input type="date" v-model="filterEndDate" class="text-xs font-bold text-slate-600 bg-transparent outline-none cursor-pointer">
                     </div>
-                    <button v-if="filterStartDate || filterEndDate" @click="clearDates" class="px-2 text-gray-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+                    <button v-if="filterStartDate || filterEndDate" @click="clearDates" class="px-2 text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
 
                 <div class="relative group">
-                    <i class="fa-solid fa-search absolute left-4 top-3 text-gray-400 group-hover:text-blue-500 transition"></i>
-                    <input v-model="searchQuery" type="text" placeholder="Buscar Cliente..." class="pl-12 pr-4 py-2.5 bg-gray-100 hover:bg-white focus:bg-white border border-transparent focus:border-blue-200 rounded-full text-sm focus:outline-none focus:ring-4 focus:ring-blue-50 w-72 transition-all">
+                    <i class="fa-solid fa-search absolute left-4 top-3 text-slate-400 group-hover:text-blue-500 transition"></i>
+                    <input v-model="searchQuery" type="text" placeholder="Buscar Cliente..." class="pl-12 pr-4 py-2.5 bg-slate-100 hover:bg-white focus:bg-white border border-transparent focus:border-blue-200 rounded-full text-sm focus:outline-none focus:ring-4 focus:ring-blue-50 w-64 transition-all">
                 </div>
                 <button @click="openModal()" class="btn-future text-white px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300">
                     <i class="fa-solid fa-plus"></i> Novo Lead
@@ -282,69 +268,55 @@
                 <!-- KPI Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="glass-panel p-6 border-l-4 border-blue-500 relative overflow-hidden group">
-                        <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-blue-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
-                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Leads</p>
-                        <h3 class="text-4xl font-extrabold text-gray-800 relative z-10">{{ filteredDashboardLeads.length }}</h3>
-                        <p class="text-[10px] text-gray-400 mt-2">No período selecionado</p>
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Leads</p>
+                        <h3 class="text-4xl font-extrabold text-slate-800">{{ filteredDashboardLeads.length }}</h3>
                     </div>
                     <div class="glass-panel p-6 border-l-4 border-yellow-500 relative overflow-hidden group">
-                         <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-yellow-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
-                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Estimado (Pipeline)</p>
-                        <h3 class="text-4xl font-extrabold text-gray-800 relative z-10">{{ formatMoeda(totalEstimado) }}</h3>
-                        <p class="text-[10px] text-gray-400 mt-2">Potencial de receita</p>
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Pipeline (Estimado)</p>
+                        <h3 class="text-4xl font-extrabold text-slate-800">{{ formatMoeda(totalEstimado) }}</h3>
                     </div>
                     <div class="glass-panel p-6 border-l-4 border-green-500 relative overflow-hidden group">
-                         <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-green-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
-                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Realizado (Caixa)</p>
-                        <h3 class="text-4xl font-extrabold text-green-600 relative z-10">{{ formatMoeda(totalRealizado) }}</h3>
-                        <p class="text-[10px] text-green-700/60 mt-2 font-medium bg-green-50 inline-block px-2 py-0.5 rounded">Confirmado</p>
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Caixa (Realizado)</p>
+                        <h3 class="text-4xl font-extrabold text-green-600">{{ formatMoeda(totalRealizado) }}</h3>
                     </div>
                     <div class="glass-panel p-6 border-l-4 border-purple-500 relative overflow-hidden group">
-                         <div class="absolute right-[-10px] top-[-10px] w-24 h-24 bg-purple-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
-                        <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Taxa Conversão</p>
-                        <h3 class="text-4xl font-extrabold text-gray-800 relative z-10">{{ taxaFechamento }}%</h3>
-                        <div class="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                            <div class="bg-purple-500 h-1.5 rounded-full" :style="{width: taxaFechamento + '%'}"></div>
-                        </div>
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Ciclo Médio Vendas</p>
+                        <h3 class="text-4xl font-extrabold text-slate-800">{{ cicloMedioVendas }} <span class="text-sm font-medium text-slate-400">dias</span></h3>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Conversão por Origem -->
                     <div class="glass-panel p-8 col-span-1 lg:col-span-2">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-bold text-xl text-gray-800">Ranking & Performance</h3>
-                            <button class="text-xs text-blue-500 hover:text-blue-700 font-bold">Ver Completo</button>
+                         <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-lg text-slate-800">Taxa de Conversão por Origem</h3>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm text-left border-collapse">
-                                <thead class="text-xs text-gray-400 font-bold uppercase border-b border-gray-100">
+                                <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100">
                                     <tr>
-                                        <th class="px-4 py-3">Consultor</th>
-                                        <th class="px-4 py-3">Leads</th>
+                                        <th class="px-4 py-3">Origem</th>
+                                        <th class="px-4 py-3">Total Leads</th>
                                         <th class="px-4 py-3">Fechados</th>
-                                        <th class="px-4 py-3 text-right">Conversão</th>
+                                        <th class="px-4 py-3 text-right">Taxa Conv.</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-50">
-                                    <tr v-for="(c, i) in rankingConsultores" :key="c.nome" class="hover:bg-blue-50/50 transition duration-200">
-                                        <td class="px-4 py-4 font-bold text-gray-700 flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-[10px] text-gray-600 font-bold">
-                                                {{ c.nome.charAt(0) }}
-                                            </div>
-                                            {{ c.nome }}
-                                            <i v-if="i === 0" class="fa-solid fa-trophy text-yellow-400"></i>
+                                <tbody class="divide-y divide-slate-50">
+                                    <tr v-for="origem in statsPorOrigem" :key="origem.nome" class="hover:bg-blue-50/50 transition duration-200">
+                                        <td class="px-4 py-4 font-bold text-slate-700">{{ origem.nome }}</td>
+                                        <td class="px-4 py-4 text-slate-600">{{ origem.total }}</td>
+                                        <td class="px-4 py-4 text-green-600 font-bold">{{ origem.fechados }}</td>
+                                        <td class="px-4 py-4 text-right">
+                                            <span class="px-2 py-1 rounded-md text-xs font-bold" :class="origem.taxa > 20 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'">{{ origem.taxa }}%</span>
                                         </td>
-                                        <td class="px-4 py-4 text-gray-600">{{ c.leads }}</td>
-                                        <td class="px-4 py-4 text-green-600 font-bold">{{ c.fechados }}</td>
-                                        <td class="px-4 py-4 text-right font-bold text-blue-600">{{ c.conversao }}%</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     
-                    <div class="glass-panel p-8 flex flex-col items-center justify-center">
-                        <h3 class="font-bold text-lg mb-6 w-full text-left text-gray-800">Origem dos Leads</h3>
+                    <div class="glass-panel p-8 flex flex-col">
+                        <h3 class="font-bold text-lg mb-6 w-full text-left text-slate-800">Distribuição (Origem)</h3>
                          <div class="relative w-full h-64">
                              <canvas id="chartOrigem"></canvas>
                          </div>
@@ -352,7 +324,7 @@
                 </div>
 
                 <div class="glass-panel p-8">
-                    <h3 class="font-bold text-xl mb-6 text-gray-800">Funil de Vendas</h3>
+                    <h3 class="font-bold text-lg mb-6 text-slate-800">Funil de Etapas</h3>
                     <div class="h-72 w-full">
                         <canvas id="chartEtapas"></canvas>
                     </div>
@@ -364,9 +336,9 @@
                     <div class="flex justify-between items-center mb-4 px-1">
                         <div class="flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : 'bg-blue-500'"></span>
-                            <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
+                            <h3 class="font-bold text-slate-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
                         </div>
-                        <span class="bg-white border border-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm">{{ getLeadsByEtapa(etapa).length }}</span>
+                        <span class="bg-white border border-slate-200 text-slate-600 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm">{{ getLeadsByEtapa(etapa).length }}</span>
                     </div>
                     
                     <div class="kanban-col flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar" 
@@ -379,28 +351,29 @@
                              draggable="true" 
                              @dragstart="startDrag($event, lead)"
                              @click="editLead(lead)"
-                             class="card-lead p-5 rounded-2xl shadow-sm border border-gray-100 group"
+                             class="card-lead p-5 rounded-2xl shadow-sm border border-slate-100 group"
                              :class="{'incomplete-lead': isIncomplete(lead)}">
                             
                             <div v-if="isIncomplete(lead)" title="Incompleto: Falta Nome" class="absolute -right-2 -top-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md z-10 font-bold">!</div>
 
-                            <div v-if="lead.msgCoordenador" class="bg-yellow-50 text-yellow-700 text-[10px] p-2 rounded-lg mb-3 border border-yellow-100 flex items-start gap-2">
-                                <i class="fa-solid fa-crown text-yellow-500 mt-0.5"></i>
-                                <span class="leading-tight">{{ lead.msgCoordenador }}</span>
+                            <!-- Indicador de msg pendente -->
+                            <div v-if="lead.msgAtiva" class="bg-red-50 text-red-600 text-[10px] p-2 rounded-lg mb-3 border border-red-100 flex items-center justify-between animate-pulse">
+                                <span class="font-bold flex items-center gap-1"><i class="fa-solid fa-comment-dots"></i> Nova mensagem</span>
+                                <span class="text-[9px]">Ver agora</span>
                             </div>
 
                             <div class="flex justify-between items-start mb-2">
                                 <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wide">{{ lead.consultor || 'Livre' }}</span>
-                                <span class="text-[10px] text-gray-400 font-medium">{{ lead.origem || '?' }}</span>
+                                <span class="text-[10px] text-slate-400 font-medium">{{ lead.origem || '?' }}</span>
                             </div>
                             
-                            <h4 class="font-bold text-gray-800 text-base mb-1 leading-snug group-hover:text-blue-600 transition-colors" :class="{'text-red-500 italic': !lead.nome}">
+                            <h4 class="font-bold text-slate-800 text-base mb-1 leading-snug group-hover:text-blue-600 transition-colors" :class="{'text-red-500 italic': !lead.nome}">
                                 {{ lead.nome || 'Sem Nome' }}
                             </h4>
-                            <p class="text-xs text-gray-500 mb-3">{{ lead.campanha || '' }}</p>
+                            <p class="text-xs text-slate-500 mb-3">{{ lead.campanha || '' }}</p>
                             
-                            <div class="flex justify-between items-center border-t border-gray-100 pt-3">
-                                <span class="text-sm font-bold text-gray-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                            <div class="flex justify-between items-center border-t border-slate-100 pt-3">
+                                <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
                                 <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
                                     <i class="fa-brands fa-whatsapp text-lg"></i>
                                 </a>
@@ -414,44 +387,39 @@
                 <div class="glass-panel p-8 flex flex-col flex-1">
                     <div class="flex justify-between items-center mb-6">
                         <div>
-                            <h3 class="font-bold text-2xl text-gray-800">Mapa de Calor (Geolocalização)</h3>
-                            <p class="text-sm text-gray-500">Distribuição geográfica automática dos leads cadastrados.</p>
+                            <h3 class="font-bold text-2xl text-slate-800">Mapa de Calor (Geolocalização)</h3>
+                            <p class="text-sm text-slate-500">Distribuição geográfica automática.</p>
                         </div>
                         <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
-                            <span class="flex items-center gap-2 font-medium text-gray-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados (Verde)</span>
-                            <span class="flex items-center gap-2 font-medium text-gray-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento (Laranja)</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
                         </div>
                     </div>
-                    <div class="flex-1 relative bg-gray-100 rounded-2xl overflow-hidden shadow-inner border border-gray-200 ring-4 ring-white">
+                    <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white">
                          <div class="map-wrapper">
                              <div id="mapContainer"></div>
-                             <div v-if="!mapInstance" class="absolute inset-0 flex items-center justify-center text-gray-500 bg-gray-50 z-50">
-                                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Carregando mapa...
+                             <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
+                                <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando coordenadas...
                             </div>
                          </div>
                     </div>
                 </div>
             </div>
-
+            
             <div v-if="view === 'config'" class="max-w-3xl mx-auto w-full">
-                <div class="glass-panel p-10">
-                    <h3 class="text-2xl font-bold mb-2 text-gray-800">Gestão de Consultores</h3>
-                    <p class="text-gray-500 mb-8">Adicione ou remova membros da equipe para atribuição de leads.</p>
+                 <div class="glass-panel p-10">
+                    <h3 class="text-2xl font-bold mb-2 text-slate-800">Gestão de Consultores</h3>
+                    <p class="text-slate-500 mb-8">Adicione ou remova membros da equipe.</p>
                     
-                    <div class="flex gap-3 mb-8 bg-gray-50 p-2 rounded-xl border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition">
-                        <input v-model="novoConsultor" type="text" placeholder="Nome do novo consultor..." class="flex-1 p-3 bg-transparent outline-none text-gray-700 font-medium">
+                    <div class="flex gap-3 mb-8 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition">
+                        <input v-model="novoConsultor" type="text" placeholder="Nome do novo consultor..." class="flex-1 p-3 bg-transparent outline-none text-slate-700 font-medium">
                         <button @click="addConsultor" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-bold transition shadow-lg shadow-blue-200">Adicionar</button>
                     </div>
 
                     <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <li v-for="(nome, index) in listaConsultores" :key="index" class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-md transition">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
-                                    {{ nome.charAt(0) }}
-                                </div>
-                                <span class="font-medium text-gray-700">{{ nome }}</span>
-                            </div>
-                            <button @click="removeConsultor(index)" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-trash"></i></button>
+                        <li v-for="(nome, index) in listaConsultores" :key="index" class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition">
+                            <span class="font-medium text-slate-700">{{ nome }}</span>
+                            <button @click="removeConsultor(index)" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-trash"></i></button>
                         </li>
                     </ul>
                 </div>
@@ -459,109 +427,140 @@
         </div>
     </main>
 
-    <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+    <div v-if="showModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-scale-up">
             
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
-                    <h3 class="text-2xl font-bold text-gray-800">{{ editingLead ? 'Editar Cliente' : 'Novo Lead' }}</h3>
-                    <p class="text-xs text-gray-400 uppercase tracking-wider font-bold mt-1">{{ editingLead ? 'ID: ' + form.id.slice(0,8) : 'Novo Cadastro' }}</p>
+                    <h3 class="text-2xl font-bold text-slate-800">{{ editingLead ? 'Editar Cliente' : 'Novo Lead' }}</h3>
                 </div>
-                <button @click="closeModal" class="w-10 h-10 rounded-full bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition shadow-sm flex items-center justify-center text-lg"><i class="fa-solid fa-times"></i></button>
+                <button @click="closeModal" class="w-10 h-10 rounded-full bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 transition shadow-sm flex items-center justify-center text-lg"><i class="fa-solid fa-times"></i></button>
             </div>
 
-            <div class="p-8 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div class="space-y-6">
-                    <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-regular fa-id-card"></i> Dados & Origem</h4>
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Telefone (WhatsApp) <span class="text-red-500">*</span></label>
-                        <input v-model="form.telefone" type="tel" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition font-medium text-gray-700" placeholder="(00) 00000-0000">
+            <div class="p-8 overflow-y-auto flex-1">
+                <!-- GRID PRINCIPAL (DADOS & GESTÃO) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-8">
+                    <!-- Coluna 1: Dados Pessoais & Origem -->
+                    <div class="space-y-6">
+                        <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-regular fa-id-card"></i> Dados & Origem</h4>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Telefone <span class="text-red-500">*</span></label>
+                            <input v-model="form.telefone" type="tel" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition font-medium text-slate-700" placeholder="(00) 00000-0000">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Nome Completo</label>
+                            <input v-model="form.nome" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition font-medium text-slate-700">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Origem</label>
+                                <select v-model="form.origem" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700">
+                                    <option value="Meta">Meta</option>
+                                    <option value="Google">Google</option>
+                                    <option value="TikTok">TikTok</option>
+                                    <option value="Indicação">Indicação</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Campanha</label>
+                                <input v-model="form.campanha" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Cidade</label>
+                                <input v-model="form.cidade" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700" placeholder="Ex: São Paulo">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Estado (UF)</label>
+                                <input v-model="form.estado" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700" placeholder="Ex: SP">
+                            </div>
+                        </div>
+
+                         <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Benefício / Assunto</label>
+                            <input v-model="form.beneficio" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700">
+                        </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Nome Completo</label>
-                        <input v-model="form.nome" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition font-medium text-gray-700" :class="{'border-red-300 bg-red-50': !form.nome && form.telefone}">
-                    </div>
+                    <!-- Coluna 2: Gestão, Valores & Observações (RESTAURADO) -->
+                    <div class="space-y-6">
+                        <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> Gestão & Valores</h4>
 
-                    <div class="grid grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Origem <span class="text-red-500">*</span></label>
-                            <select v-model="form.origem" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none font-medium text-gray-700">
-                                <option value="Meta">Meta (Face/Insta)</option>
-                                <option value="Google">Google Ads</option>
-                                <option value="TikTok">TikTok</option>
-                                <option value="Indicação">Indicação</option>
-                                <option value="Outros">Outros</option>
-                            </select>
+                        <div class="grid grid-cols-2 gap-5">
+                             <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Consultor Responsável</label>
+                                <select v-model="form.consultor" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700">
+                                    <option value="">Selecione...</option>
+                                    <option v-for="nome in listaConsultores" :value="nome">{{ nome }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                 <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Data Fechamento</label>
+                                 <input v-model="form.dataFechamento" type="date" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Campanha</label>
-                            <input v-model="form.campanha" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700" placeholder="Ex: Aposentadoria">
-                        </div>
-                    </div>
 
-                    <div class="grid grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Cidade</label>
-                            <input v-model="form.cidade" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700" placeholder="Ex: São Paulo">
+                        <div class="grid grid-cols-2 gap-5">
+                            <div>
+                                 <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Estimado (R$)</label>
+                                 <input v-model="form.receitaEstimada" type="number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-blue-600 font-bold text-lg outline-none">
+                            </div>
+                            <div>
+                                 <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Realizado (R$)</label>
+                                 <input v-model="form.receitaRealizada" type="number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-green-600 font-bold text-lg outline-none" :disabled="form.etapa !== 'Recebido (Fechado)'">
+                            </div>
                         </div>
+
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Estado (UF)</label>
-                            <input v-model="form.estado" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700" placeholder="Ex: SP">
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Observações Gerais</label>
+                            <textarea v-model="form.obs" rows="4" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none resize-none text-slate-700" placeholder="Detalhes importantes sobre o lead..."></textarea>
                         </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Benefício / Assunto</label>
-                        <input v-model="form.beneficio" type="text" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700">
                     </div>
                 </div>
 
-                <div class="space-y-6">
-                    <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-solid fa-chart-line"></i> Gestão & Valores</h4>
-
-                    <div class="grid grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Consultor</label>
-                            <select v-model="form.consultor" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none font-medium text-gray-700">
-                                <option value="">Selecione...</option>
-                                <option v-for="nome in listaConsultores" :value="nome">{{ nome }}</option>
-                            </select>
+                <!-- SESSÃO INFERIOR: CHAT (ACESSÍVEL VIA SCROLL) -->
+                <div class="space-y-6 pt-6 border-t border-slate-200">
+                     <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-comments"></i> Central de Mensagens & Histórico</h4>
+                     
+                     <!-- Chat Box Expandido -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 h-64 overflow-y-auto flex flex-col gap-3 custom-scrollbar shadow-inner">
+                        <div v-if="!form.historicoMsg || form.historicoMsg.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400">
+                            <i class="fa-regular fa-comments text-3xl mb-2 opacity-30"></i>
+                            <span class="text-xs">Nenhuma mensagem registrada. Inicie uma conversa abaixo.</span>
                         </div>
-                         <!-- NOVO CAMPO: DATA FECHAMENTO -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Data Fechamento</label>
-                            <input v-model="form.dataFechamento" type="date" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition font-medium text-gray-700">
+                        <div v-for="(msg, i) in form.historicoMsg" :key="i" class="chat-bubble" :class="msg.tipo === 'coord' ? 'chat-coord' : (msg.tipo === 'system' ? 'bg-slate-200 text-slate-500 text-center w-full mx-auto text-[10px] uppercase font-bold tracking-wider' : 'chat-vendedor')">
+                            <p class="font-medium">{{ msg.texto }}</p>
+                            <span v-if="msg.tipo !== 'system'" class="text-[9px] opacity-70 block mt-1">{{ new Date(msg.data).toLocaleString() }}</span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Estimado (R$)</label>
-                            <input v-model="form.receitaEstimada" type="number" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-blue-600 font-bold text-lg outline-none">
+                    <!-- Input Areas Lado a Lado -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex gap-2">
+                             <input v-model="novaMsgCoord" placeholder="Enviar alerta como Coordenador..." class="flex-1 p-3 border border-yellow-200 bg-yellow-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-400 placeholder-yellow-700/50 text-yellow-900" @keyup.enter="enviarMsg('coord')">
+                             <button @click="enviarMsg('coord')" class="bg-yellow-500 text-white px-4 rounded-lg hover:bg-yellow-600 shadow-md shadow-yellow-200"><i class="fa-solid fa-paper-plane"></i></button>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Realizado (R$)</label>
-                            <input v-model="form.receitaRealizada" type="number" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-green-600 font-bold text-lg outline-none" :disabled="form.etapa !== 'Recebido (Fechado)'">
+                        
+                        <div class="flex gap-2">
+                            <input v-model="novaMsgVendedor" placeholder="Responder como Vendedor..." class="flex-1 p-3 border border-green-200 bg-green-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-400 placeholder-green-700/50 text-green-900" @keyup.enter="enviarMsg('vendedor')">
+                             <button @click="enviarMsg('vendedor')" class="bg-green-600 text-white px-4 rounded-lg hover:bg-green-700 shadow-md shadow-green-200"><i class="fa-solid fa-reply"></i></button>
                         </div>
                     </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Observações</label>
-                        <textarea v-model="form.obs" rows="3" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none resize-none text-gray-700"></textarea>
-                    </div>
-
-                    <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mt-2 relative">
-                        <label class="block text-xs font-bold text-yellow-800 mb-2 uppercase flex items-center gap-2"><i class="fa-solid fa-crown text-yellow-500"></i> Mensagem do Coordenador</label>
-                        <input v-model="form.msgCoordenador" type="text" class="w-full p-3 border border-yellow-300 rounded-lg bg-white text-sm text-gray-700 placeholder-yellow-200/50" placeholder="Escreva um alerta para o consultor...">
-                        <p class="text-[10px] text-yellow-600 mt-1">*Esta mensagem gera uma notificação para a equipe.</p>
-                    </div>
+                    
+                    <button v-if="form.msgAtiva" @click="marcarComoLido" class="w-full py-3 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm">
+                        <i class="fa-solid fa-check-double mr-1"></i> Marcar Alerta como Visualizado/Concluído
+                    </button>
                 </div>
             </div>
 
-            <div class="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                <button v-if="editingLead" @click="deleteLead" class="text-red-500 font-bold hover:bg-red-50 px-6 py-3 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-trash"></i> Excluir Lead</button>
+            <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                <button v-if="editingLead" @click="deleteLead" class="text-red-500 font-bold hover:bg-red-50 px-6 py-3 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-trash"></i> Excluir</button>
                 <div v-else></div>
                 <button @click="saveLead" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-1 flex items-center gap-2">
                     <i class="fa-solid fa-save"></i> Salvar Lead
@@ -574,10 +573,28 @@
 <!-- Módulos Firebase e Aplicação -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- CONFIGURAÇÃO MANUAL DO USUÁRIO ---
+    // Cache Estático de Capitais e Estados para carga instantânea
+    const STATIC_COORDS = {
+        "SP": [-23.5505, -46.6333], "SAO PAULO": [-23.5505, -46.6333],
+        "RJ": [-22.9068, -43.1729], "RIO DE JANEIRO": [-22.9068, -43.1729],
+        "MG": [-19.9167, -43.9345], "MINAS GERAIS": [-19.9167, -43.9345],
+        "ES": [-20.3155, -40.3128], "ESPIRITO SANTO": [-20.3155, -40.3128],
+        "RS": [-30.0346, -51.2177], "RIO GRANDE DO SUL": [-30.0346, -51.2177],
+        "SC": [-27.5954, -48.5480], "SANTA CATARINA": [-27.5954, -48.5480],
+        "PR": [-25.4284, -49.2733], "PARANA": [-25.4284, -49.2733],
+        "BA": [-12.9777, -38.5016], "BAHIA": [-12.9777, -38.5016],
+        "PE": [-8.0476, -34.8770], "PERNAMBUCO": [-8.0476, -34.8770],
+        "CE": [-3.7172, -38.5434], "CEARA": [-3.7172, -38.5434],
+        "DF": [-15.7975, -47.8919], "DISTRITO FEDERAL": [-15.7975, -47.8919],
+        "GO": [-16.6869, -49.2648], "GOIAS": [-16.6869, -49.2648],
+        "AM": [-3.1190, -60.0217], "AMAZONAS": [-3.1190, -60.0217],
+        "MT": [-15.6014, -56.0979], "MATO GROSSO": [-15.6014, -56.0979],
+        "MS": [-20.4697, -54.6201], "MATO GROSSO DO SUL": [-20.4697, -54.6201]
+    };
+
     const USER_FIREBASE_CONFIG = {
         apiKey: "AIzaSyC0rXC6dYNhRzth6aa_5qcmavy0Q8wS0nA",
         authDomain: "crm-revive.firebaseapp.com",
@@ -588,9 +605,7 @@
         measurementId: "G-LVVTP722EM"
     };
 
-    // --- VARIÁVEIS GLOBAIS ---
     let app, auth, db;
-    
     const { createApp } = Vue;
 
     createApp({
@@ -599,19 +614,14 @@
                 view: 'dashboard',
                 salaInput: '',
                 salaAtual: localStorage.getItem('revive_sala_atual') || '', 
-                
                 dbConnected: false,
                 errorMessage: '',
-                
                 searchQuery: '',
-                
-                // Filtros de Data
                 filterStartDate: '',
                 filterEndDate: '',
-
-                // Notificações
                 showNotifications: false,
-
+                loadingMap: false,
+                
                 showModal: false,
                 editingLead: null,
                 leads: [],
@@ -619,16 +629,22 @@
                 listaConsultores: ['João', 'Maria', 'Pedro'], 
                 novoConsultor: '',
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta / Perdido'],
+                
                 form: {
                     id: null, nome: '', telefone: '', beneficio: '', condicao: '',
                     cidade: '', estado: '', obs: '', consultor: '',
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
-                    etapa: 'Primeiro Contato', msgCoordenador: '',
-                    dataFechamento: '' // Novo campo
+                    etapa: 'Primeiro Contato', 
+                    historicoMsg: [], // Array de objetos {tipo, texto, data}
+                    msgAtiva: false, // Flag para notificação
+                    dataFechamento: ''
                 },
+                novaMsgCoord: '',
+                novaMsgVendedor: '',
+
                 toast: { show: false, message: '', icon: '' },
-                cityCache: {}
+                cityCache: {...STATIC_COORDS}
             }
         },
         created() {
@@ -645,11 +661,8 @@
                 const titles = {dashboard: 'Dashboard Executivo', pipeline: 'Pipeline de Vendas', mapa: 'Inteligência Geográfica', config: 'Configurações'};
                 return titles[this.view] || 'Revive CRM';
             },
-            // Filtra leads pela busca de texto E data (se aplicada)
             filteredLeads() {
                 let result = this.leads;
-
-                // Busca por texto
                 if (this.searchQuery) {
                     const term = this.searchQuery.toLowerCase();
                     result = result.filter(l => 
@@ -659,10 +672,8 @@
                 }
                 return result;
             },
-            // Computada específica para o Dashboard que aplica os filtros de data
             filteredDashboardLeads() {
                 let result = this.leads;
-                
                 if (this.filterStartDate) {
                     result = result.filter(l => (l.dataCriacao || '').slice(0,10) >= this.filterStartDate);
                 }
@@ -671,35 +682,38 @@
                 }
                 return result;
             },
-            // Notificações: Leads com mensagem do coordenador
             unreadNotifications() {
-                // Mostra leads que têm mensagem do coordenador
-                return this.leads.filter(l => l.msgCoordenador && l.msgCoordenador.trim() !== '');
+                return this.leads.filter(l => l.msgAtiva);
             },
             totalEstimado() { return this.filteredDashboardLeads.reduce((acc, l) => acc + (Number(l.receitaEstimada) || 0), 0); },
             totalRealizado() { 
-                // Para realizado, idealmente usaria dataFechamento se existir, mas vamos simplificar usando a mesma lista filtrada
                 return this.filteredDashboardLeads.filter(l => l.etapa === 'Recebido (Fechado)').reduce((acc, l) => acc + (Number(l.receitaRealizada) || 0), 0); 
             },
-            taxaFechamento() {
-                const base = this.filteredDashboardLeads;
-                const fechados = base.filter(l => l.etapa === 'Recebido (Fechado)').length;
-                return base.length ? ((fechados / base.length) * 100).toFixed(1) : 0;
+            cicloMedioVendas() {
+                const fechados = this.filteredDashboardLeads.filter(l => l.etapa === 'Recebido (Fechado)' && l.dataFechamento && l.dataCriacao);
+                if (fechados.length === 0) return 0;
+                
+                const totalDias = fechados.reduce((acc, l) => {
+                    const start = new Date(l.dataCriacao);
+                    const end = new Date(l.dataFechamento);
+                    const diffTime = Math.abs(end - start);
+                    return acc + Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                }, 0);
+                
+                return (totalDias / fechados.length).toFixed(0);
             },
-            rankingConsultores() {
-                const ranking = {};
-                this.listaConsultores.forEach(c => ranking[c] = { nome: c, leads: 0, fechados: 0, conversao: 0 });
-                // Usa a lista filtrada por data para o ranking também
+            statsPorOrigem() {
+                const map = {};
                 this.filteredDashboardLeads.forEach(l => {
-                    if (l.consultor && ranking[l.consultor]) {
-                        ranking[l.consultor].leads++;
-                        if (l.etapa === 'Recebido (Fechado)') ranking[l.consultor].fechados++;
-                    }
+                    const o = l.origem || 'Outros';
+                    if(!map[o]) map[o] = { nome: o, total: 0, fechados: 0 };
+                    map[o].total++;
+                    if(l.etapa === 'Recebido (Fechado)') map[o].fechados++;
                 });
-                return Object.values(ranking).map(r => {
-                    r.conversao = r.leads ? ((r.fechados / r.leads) * 100).toFixed(0) : 0;
-                    return r;
-                }).sort((a, b) => b.fechados - a.fechados);
+                return Object.values(map).map(item => {
+                    item.taxa = item.total ? ((item.fechados / item.total) * 100).toFixed(1) : 0;
+                    return item;
+                }).sort((a,b) => b.fechados - a.fechados);
             }
         },
         methods: {
@@ -720,67 +734,71 @@
                 setTimeout(() => this.toast.show = false, 3000);
             },
             clearDates() {
-                this.filterStartDate = '';
-                this.filterEndDate = '';
-                this.updateCharts(); // Atualiza gráficos ao limpar
+                this.filterStartDate = ''; this.filterEndDate = '';
+                this.updateCharts();
             },
             openNotification(lead) {
                 this.showNotifications = false;
                 this.editLead(lead);
             },
+            // FUNÇÕES DE CHAT DO COORDENADOR
+            enviarMsg(tipo) {
+                const texto = tipo === 'coord' ? this.novaMsgCoord : this.novaMsgVendedor;
+                if(!texto) return;
+
+                if(!this.form.historicoMsg) this.form.historicoMsg = [];
+                
+                this.form.historicoMsg.push({
+                    tipo: tipo,
+                    texto: texto,
+                    data: new Date().toISOString()
+                });
+
+                if(tipo === 'coord') {
+                    this.form.msgAtiva = true; // Ativa notificação
+                    this.novaMsgCoord = '';
+                } else {
+                    this.novaMsgVendedor = '';
+                }
+            },
+            marcarComoLido() {
+                this.form.msgAtiva = false; // Remove notificação
+                // Adiciona log de visualização
+                if(!this.form.historicoMsg) this.form.historicoMsg = [];
+                this.form.historicoMsg.push({
+                    tipo: 'system',
+                    texto: '--- Visualizado/Concluído pelo Vendedor ---',
+                    data: new Date().toISOString()
+                });
+            },
 
             async retryConnection() {
-                this.errorMessage = '';
-                this.dbConnected = false;
-                
                 const config = USER_FIREBASE_CONFIG;
-                
                 try {
                     try { app = initializeApp(config); } catch(e) { } 
                     auth = getAuth(app);
                     db = getFirestore(app);
-                    
                     await signInAnonymously(auth);
-
                     onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            this.connectDB();
-                        } else {
-                            this.errorMessage = "Falha na Autenticação Anônima.";
-                        }
+                        if (user) this.connectDB();
                     });
-
-                } catch(e) {
-                    this.errorMessage = "Erro de Conexão: " + e.message;
-                }
+                } catch(e) { console.error(e); }
             },
 
             connectDB() {
-                try {
-                    const leadsRef = collection(db, 'leads');
-                    
-                    onSnapshot(leadsRef, (snapshot) => {
-                        this.dbConnected = true;
-                        this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                        this.updateLeadsByRoom();
-                        
-                        if(this.view === 'dashboard') this.updateCharts();
-                        if(this.view === 'mapa') this.initMap();
-                        
-                    }, (error) => {
-                        this.dbConnected = false;
-                    });
-                } catch(e) {
-                    this.errorMessage = "Erro Listener: " + e.message;
-                }
+                const leadsRef = collection(db, 'leads');
+                onSnapshot(leadsRef, (snapshot) => {
+                    this.dbConnected = true;
+                    this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    this.updateLeadsByRoom();
+                    if(this.view === 'dashboard') this.updateCharts();
+                    if(this.view === 'mapa') setTimeout(() => this.initMap(), 500);
+                });
             },
 
             updateLeadsByRoom() {
-                if(this.salaAtual) {
-                    this.leads = this.allLeads.filter(lead => lead.sala === this.salaAtual);
-                } else {
-                    this.leads = [];
-                }
+                if(this.salaAtual) this.leads = this.allLeads.filter(lead => lead.sala === this.salaAtual);
+                else this.leads = [];
             },
 
             async changeView(newView) {
@@ -804,115 +822,82 @@
                     this.mapInstance = null;
                 }
                 
-                // Centraliza no Brasil
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.mapInstance);
                 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap'
-                }).addTo(this.mapInstance);
-                
-                setTimeout(() => { this.mapInstance.invalidateSize(); }, 200);
+                this.loadingMap = true;
 
-                // Agrupa por cidade para evitar markers sobrepostos
                 const cityGroups = {};
                 this.leads.forEach(lead => {
-                    if(lead.cidade && lead.estado) {
-                        const key = `${lead.cidade.trim()}, ${lead.estado.trim()}`;
-                        if(!cityGroups[key]) cityGroups[key] = [];
-                        cityGroups[key].push(lead);
+                    if(lead.cidade || lead.estado) {
+                        // Tenta usar cidade, se não tiver usa estado
+                        const locName = lead.cidade ? `${lead.cidade.toUpperCase().trim()}` : lead.estado.toUpperCase().trim();
+                        const key = locName; 
+                        if(!cityGroups[key]) cityGroups[key] = { leads: [], fullQuery: lead.cidade ? `${lead.cidade}, ${lead.estado || 'Brasil'}` : `${lead.estado}, Brasil` };
+                        cityGroups[key].leads.push(lead);
                     }
                 });
 
-                for (const [location, leadsInCity] of Object.entries(cityGroups)) {
-                    let coords = this.cityCache[location];
+                for (const [key, data] of Object.entries(cityGroups)) {
+                    let coords = this.cityCache[key] || this.cityCache[key.split(',')[0]] || this.cityCache[data.leads[0].estado?.toUpperCase()];
                     
-                    // Geocoding "preguiçoso"
+                    // Fallback para API se não estiver no cache estático
                     if (!coords) {
                         try {
-                            let query = `${location}, Brazil`;
-                            let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-                            let data = await response.json();
-                            if ((!data || data.length === 0)) {
-                                const justCity = location.split(',')[0];
-                                query = `${justCity}, Brazil`;
-                                response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-                                data = await response.json();
+                            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.fullQuery)}&limit=1`);
+                            const apiData = await response.json();
+                            if(apiData && apiData.length > 0) {
+                                coords = [parseFloat(apiData[0].lat), parseFloat(apiData[0].lon)];
+                                this.cityCache[key] = coords; // Salva no cache da sessão
                             }
-                            if(data && data.length > 0) {
-                                coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-                                this.cityCache[location] = coords;
-                            }
-                        } catch(e) { console.error("Erro geocoding", e); }
-                        await new Promise(r => setTimeout(r, 800)); // Delay para respeitar API grátis
+                        } catch(e) { console.log('Erro geocoding', e); }
                     }
 
                     if (coords) {
-                        leadsInCity.forEach(lead => {
-                            // CORRIGIDO: Verde para fechados, Laranja para os demais
+                        data.leads.forEach(lead => {
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
-                            const color = isClosed ? '#22C55E' : '#F97316'; // Verde Tailwind ou Laranja Tailwind
-                            const marker = L.circleMarker(coords, { radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9 }).addTo(this.mapInstance);
-                            marker.bindPopup(`<div class="text-xs font-sans"><strong class="text-sm block mb-1 text-gray-800">${lead.nome || 'Sem Nome'}</strong>${lead.cidade} - ${lead.estado}<br><span class="${isClosed ? 'text-green-600 font-bold' : 'text-orange-500'}">${lead.etapa}</span></div>`);
+                            const color = isClosed ? '#22C55E' : '#F97316'; 
+                            L.circleMarker(coords, { radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9 })
+                             .addTo(this.mapInstance)
+                             .bindPopup(`<strong class="text-sm">${lead.nome || 'Lead'}</strong><br>${lead.cidade || ''} - ${lead.estado || ''}<br>Status: ${lead.etapa}`);
                         });
                     }
                 }
+                this.loadingMap = false;
             },
 
             updateCharts() {
-                // Gráficos usam os dados filtrados por data
                 const leadsData = this.filteredDashboardLeads;
-
+                
                 const ctxOrigem = document.getElementById('chartOrigem');
                 if(ctxOrigem) {
                     if(this.charts.origem) this.charts.origem.destroy();
-                    const origens = {};
-                    leadsData.forEach(l => { const o = l.origem || 'Outros'; origens[o] = (origens[o] || 0) + 1; });
+                    const data = this.statsPorOrigem;
                     this.charts.origem = new Chart(ctxOrigem, {
                         type: 'doughnut',
                         data: {
-                            labels: Object.keys(origens),
+                            labels: data.map(d => d.nome),
                             datasets: [{ 
-                                data: Object.values(origens), 
+                                data: data.map(d => d.total), 
                                 backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
                                 borderWidth: 0
                             }]
                         },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'right', labels: { usePointStyle: true, font: {family: 'Outfit'} } } },
-                            cutout: '70%'
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
                     });
                 }
 
                 const ctxEtapas = document.getElementById('chartEtapas');
                 if(ctxEtapas) {
                     if(this.charts.etapas) this.charts.etapas.destroy();
-                    // Conta quantos leads estão em cada etapa
                     const data = this.etapas.map(e => leadsData.filter(l => l.etapa === e).length);
                     this.charts.etapas = new Chart(ctxEtapas, {
                         type: 'bar',
                         data: {
-                            labels: this.etapas.map(e => e.split(' ')[0]), // Pega só a primeira palavra para o label não ficar gigante
-                            datasets: [{ 
-                                label: 'Leads', 
-                                data: data, 
-                                backgroundColor: '#6366F1', 
-                                borderRadius: 6,
-                                barThickness: 20
-                            }]
+                            labels: this.etapas.map(e => e.split(' ')[0]),
+                            datasets: [{ label: 'Leads', data: data, backgroundColor: '#6366F1', borderRadius: 6 }]
                         },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false,
-                            indexAxis: 'y', 
-                            plugins: { legend: { display: false } },
-                            scales: { 
-                                x: { beginAtZero: true, grid: { display: false } },
-                                y: { grid: { display: false }, ticks: { font: {family: 'Outfit'} } }
-                            }
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
                     });
                 }
             },
@@ -932,32 +917,20 @@
                 }
 
                 if(lead) {
-                    // Otimista update visual
                     lead.etapa = novaEtapa;
                     if(this.view === 'dashboard') this.updateCharts();
                 }
 
                 if (novaEtapa === 'Recebido (Fechado)') {
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#10B981', '#3B82F6'] });
-                    // Se fechar agora e não tiver data, seta data de hoje
-                    if (!lead.dataFechamento) {
-                         const today = new Date().toISOString().split('T')[0];
-                         // Atualiza no banco logo abaixo
-                         lead.dataFechamento = today; 
-                    }
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    if (!lead.dataFechamento) lead.dataFechamento = new Date().toISOString().split('T')[0];
                 }
 
                 if (this.dbConnected) {
-                    try {
-                        const leadRef = doc(db, 'leads', leadId);
-                        const updatePayload = { etapa: novaEtapa };
-                        if(lead.dataFechamento) updatePayload.dataFechamento = lead.dataFechamento;
-                        
-                        await updateDoc(leadRef, updatePayload);
-                    } catch(e) { 
-                        console.error("Erro sync:", e);
-                        this.showToast('Erro ao sincronizar: ' + e.message, 'fa-exclamation-triangle');
-                    }
+                    const leadRef = doc(db, 'leads', leadId);
+                    const updatePayload = { etapa: novaEtapa };
+                    if(lead.dataFechamento) updatePayload.dataFechamento = lead.dataFechamento;
+                    await updateDoc(leadRef, updatePayload);
                 }
             },
 
@@ -967,65 +940,47 @@
                     cidade: '', estado: '', obs: '', consultor: '',
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
-                    etapa: 'Primeiro Contato', msgCoordenador: '',
+                    etapa: 'Primeiro Contato', 
+                    historicoMsg: [], 
+                    msgAtiva: false,
                     dataFechamento: ''
                 };
+                this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
                 this.showModal = true;
             },
             editLead(lead) {
                 this.form = { ...lead };
+                // Garantir array se for antigo
+                if(!this.form.historicoMsg) this.form.historicoMsg = [];
+                // Migração legado se existir msg antiga
+                if(this.form.msgCoordenador && this.form.historicoMsg.length === 0) {
+                     this.form.historicoMsg.push({ tipo: 'coord', texto: this.form.msgCoordenador, data: new Date().toISOString() });
+                }
+                this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = true;
                 this.showModal = true;
             },
             async saveLead() {
-                if (!this.dbConnected) {
-                    alert("Erro: Não conectado ao Banco de Dados.");
-                    return;
-                }
-
+                if (!this.dbConnected) return alert("Erro: Offline.");
                 const data = { ...this.form };
-                if(data.cidade) data.cidade = data.cidade.toString().trim();
-                if(data.estado) data.estado = data.estado.toString().trim();
-                
                 data.sala = this.salaAtual;
                 delete data.id;
 
-                try {
-                    const leadsRef = collection(db, 'leads');
-
-                    if (this.editingLead) {
-                        const docRef = doc(db, 'leads', this.form.id);
-                        await updateDoc(docRef, data);
-                    } else {
-                        data.dataCriacao = new Date().toISOString();
-                        await addDoc(leadsRef, data);
-                    }
-                    this.closeModal();
-                    this.showToast('Salvo na Nuvem!', 'fa-cloud-upload');
-                } catch(e) {
-                    console.error("Erro ao salvar nuvem:", e);
-                    this.showToast('Erro ao salvar: ' + e.message, 'fa-exclamation-circle');
+                const leadsRef = collection(db, 'leads');
+                if (this.editingLead) {
+                    await updateDoc(doc(db, 'leads', this.form.id), data);
+                } else {
+                    data.dataCriacao = new Date().toISOString();
+                    await addDoc(leadsRef, data);
                 }
-                
-                if(this.view === 'dashboard') this.updateCharts();
+                this.closeModal();
+                this.showToast('Salvo com sucesso!');
             },
             async deleteLead() {
-                if(!confirm('Excluir lead?')) return;
-                const id = this.form.id;
-
-                if (this.dbConnected) {
-                    try {
-                        const docRef = doc(db, 'leads', id);
-                        await deleteDoc(docRef);
-                        this.closeModal();
-                    } catch(e) { 
-                        console.error("Erro delete:", e); 
-                        alert("Erro ao excluir: " + e.message);
-                    }
-                }
-                
-                if(this.view === 'dashboard') this.updateCharts();
+                if(!confirm('Excluir?')) return;
+                await deleteDoc(doc(db, 'leads', this.form.id));
+                this.closeModal();
             },
             closeModal() { this.showModal = false; },
             addConsultor() {
