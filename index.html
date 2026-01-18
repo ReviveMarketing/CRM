@@ -255,7 +255,30 @@
                 <div class="flex items-center shadow-sm rounded-full">
                     <div class="relative group">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition"></i>
-                        <input v-model="searchInput" @keyup.enter="executeSearch" type="text" placeholder="Buscar por Nome ou Contato..." class="pl-10 pr-4 py-3 bg-slate-100 hover:bg-white focus:bg-white border-y border-l border-slate-200 focus:border-blue-300 rounded-l-full text-sm focus:outline-none focus:ring-0 w-64 transition-all">
+                        <input 
+                            v-model="searchInput" 
+                            @keyup.enter="executeSearch" 
+                            @input="showSuggestions = true"
+                            type="text" 
+                            placeholder="Buscar por Nome ou Contato..." 
+                            class="pl-10 pr-4 py-3 bg-slate-100 hover:bg-white focus:bg-white border-y border-l border-slate-200 focus:border-blue-300 rounded-l-full text-sm focus:outline-none focus:ring-0 w-64 transition-all"
+                        >
+                        <!-- AUTOCOMPLETE DROPDOWN -->
+                        <div v-if="showSuggestions && searchSuggestions.length > 0" class="absolute top-full left-0 w-[120%] bg-white border border-slate-200 rounded-xl shadow-2xl mt-2 z-50 overflow-hidden max-h-72 overflow-y-auto">
+                            <div class="bg-slate-50 px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Sugestões Encontradas</div>
+                            <div 
+                                v-for="lead in searchSuggestions" 
+                                :key="lead.id" 
+                                @click="selectSuggestion(lead)"
+                                class="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition group/item"
+                            >
+                                <div>
+                                    <p class="font-bold text-slate-700 text-sm group-hover/item:text-blue-600">{{ lead.nome }}</p>
+                                    <p class="text-xs text-slate-400 flex items-center gap-1"><i class="fa-brands fa-whatsapp text-green-500"></i> {{ lead.telefone }}</p>
+                                </div>
+                                <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase group-hover/item:bg-white group-hover/item:shadow-sm">{{ lead.etapa }}</span>
+                            </div>
+                        </div>
                     </div>
                     <button @click="executeSearch" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-r-full text-sm font-bold border border-blue-600 shadow-md transition hover:shadow-lg flex items-center gap-2">
                         <i class="fa-solid fa-filter"></i> Carregar
@@ -718,6 +741,7 @@
                 errorMessage: '',
                 searchQuery: '',
                 searchInput: '',
+                showSuggestions: false, // Controle do dropdown
                 filterStartDate: '',
                 filterEndDate: '',
                 showNotifications: false,
@@ -766,6 +790,14 @@
             pageTitle() {
                 const titles = {dashboard: 'Dashboard Executivo', pipeline: 'Pipeline de Vendas', mapa: 'Inteligência Geográfica', config: 'Configurações'};
                 return titles[this.view] || 'Revive CRM';
+            },
+            searchSuggestions() {
+                if (!this.searchInput || this.searchInput.length < 2) return [];
+                const term = this.searchInput.toLowerCase();
+                return this.leads.filter(l => 
+                    (l.nome && l.nome.toLowerCase().includes(term)) || 
+                    (l.telefone && l.telefone.includes(term))
+                ).slice(0, 5); // Limita a 5 sugestões
             },
             filteredLeads() {
                 let result = this.leads;
@@ -881,11 +913,19 @@
             },
             executeSearch() {
                 this.searchQuery = this.searchInput;
+                this.showSuggestions = false;
                 if(this.searchInput) {
                     this.showToast('Buscando...', 'fa-search');
                 } else {
                     this.showToast('Filtro limpo', 'fa-rotate-left');
                 }
+            },
+            // SELEÇÃO DE SUGESTÃO
+            selectSuggestion(lead) {
+                this.editLead(lead);
+                this.showSuggestions = false;
+                // Opcional: Limpar busca ou manter
+                this.searchInput = '';
             },
             openNotification(lead) {
                 this.showNotifications = false;
