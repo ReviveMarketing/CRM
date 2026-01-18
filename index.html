@@ -283,7 +283,6 @@
                         <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Ciclo Médio Vendas</p>
                         <h3 class="text-4xl font-extrabold text-slate-800">{{ cicloMedioVendas }} <span class="text-sm font-medium text-slate-400">dias</span></h3>
                     </div>
-                    <!-- NOVO CARD: Conversão Total -->
                     <div class="glass-panel p-6 border-l-4 border-indigo-500 relative overflow-hidden group">
                         <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Conversão Total</p>
                         <h3 class="text-4xl font-extrabold text-indigo-600">{{ taxaFechamento }}%</h3>
@@ -338,7 +337,7 @@
                     </div>
                  </div>
 
-                 <!-- SESSÃO RESTAURADA: Ranking de Consultores -->
+                 <!-- Ranking de Consultores -->
                  <div class="glass-panel p-8 mt-6">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="font-bold text-lg text-slate-800">Ranking de Performance (Vendedores)</h3>
@@ -386,6 +385,38 @@
                         </table>
                     </div>
                  </div>
+
+                 <!-- NOVO: Performance Geográfica (Por Estado) -->
+                 <div class="glass-panel p-8 mt-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-slate-800">Performance Geográfica (Por Estado)</h3>
+                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase"><i class="fa-solid fa-map-location mr-1"></i> Regional</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100 sticky top-0 bg-white z-10">
+                                <tr>
+                                    <th class="px-6 py-3">Estado (UF)</th>
+                                    <th class="px-6 py-3 text-center">Total Leads</th>
+                                    <th class="px-6 py-3 text-center text-orange-500">Em Andamento</th>
+                                    <th class="px-6 py-3 text-center text-green-600">Fechados</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                <tr v-for="(s, index) in statsPorEstado" :key="index" class="hover:bg-slate-50 transition duration-200">
+                                    <td class="px-6 py-4 font-bold text-slate-700">{{ s.estado }}</td>
+                                    <td class="px-6 py-4 text-center text-slate-600 font-medium">{{ s.total }}</td>
+                                    <td class="px-6 py-4 text-center text-orange-500 font-bold">{{ s.andamento }}</td>
+                                    <td class="px-6 py-4 text-center text-green-600 font-bold">{{ s.fechados }}</td>
+                                </tr>
+                                <tr v-if="statsPorEstado.length === 0">
+                                    <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">Nenhum dado geográfico registrado ainda.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                 </div>
+
             </div>
 
             <div v-if="view === 'pipeline'" class="flex gap-6 h-full overflow-x-auto pb-4 px-2">
@@ -528,14 +559,21 @@
                             </div>
                         </div>
 
+                        <!-- MODIFICADO: Dropdowns de Estado/Cidade -->
                         <div class="grid grid-cols-2 gap-5">
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Cidade</label>
-                                <input v-model="form.cidade" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700" placeholder="Ex: São Paulo">
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Estado (UF)</label>
+                                <select v-model="form.estado" @change="carregarCidades(form.estado)" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700">
+                                    <option value="">Selecione...</option>
+                                    <option v-for="uf in estados" :key="uf.sigla" :value="uf.sigla">{{ uf.nome }}</option>
+                                </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Estado (UF)</label>
-                                <input v-model="form.estado" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700" placeholder="Ex: SP">
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Cidade</label>
+                                <select v-model="form.cidade" :disabled="!form.estado" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <option value="">Selecione...</option>
+                                    <option v-for="cidade in cidadesPorEstado" :key="cidade" :value="cidade">{{ cidade }}</option>
+                                </select>
                             </div>
                         </div>
 
@@ -700,6 +738,10 @@
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
 
+                // Locais (IBGE)
+                estados: [],
+                cidadesPorEstado: [],
+
                 toast: { show: false, message: '', icon: '' },
                 cityCache: {...STATIC_COORDS}
             }
@@ -707,6 +749,7 @@
         created() {
             this.mapInstance = null;
             this.charts = {};
+            this.carregarEstados();
         },
         mounted() {
             this.retryConnection();
@@ -791,6 +834,22 @@
                     r.conversao = r.leads ? ((r.fechados / r.leads) * 100).toFixed(0) : 0;
                     return r;
                 }).sort((a, b) => b.fechados - a.fechados);
+            },
+            // NOVO COMPUTED: Stats por Estado
+            statsPorEstado() {
+                const map = {};
+                this.filteredDashboardLeads.forEach(l => {
+                    const uf = l.estado || 'N/A';
+                    if(!map[uf]) map[uf] = { estado: uf, total: 0, fechados: 0, andamento: 0 };
+                    
+                    map[uf].total++;
+                    if(l.etapa === 'Recebido (Fechado)') {
+                        map[uf].fechados++;
+                    } else if (l.etapa !== 'Sem Resposta / Perdido') {
+                        map[uf].andamento++;
+                    }
+                });
+                return Object.values(map).sort((a, b) => b.total - a.total);
             }
         },
         methods: {
@@ -847,6 +906,23 @@
                     texto: '--- Visualizado/Concluído pelo Vendedor ---',
                     data: new Date().toISOString()
                 });
+            },
+
+            // --- FUNÇÕES IBGE ---
+            async carregarEstados() {
+                try {
+                    const res = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
+                    const data = await res.json();
+                    this.estados = data.map(uf => ({ sigla: uf.sigla, nome: uf.nome }));
+                } catch(e) { console.error("Erro IBGE UF", e); }
+            },
+            async carregarCidades(uf) {
+                if(!uf) { this.cidadesPorEstado = []; return; }
+                try {
+                    const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+                    const data = await res.json();
+                    this.cidadesPorEstado = data.map(c => c.nome);
+                } catch(e) { console.error("Erro IBGE Cidade", e); }
             },
 
             async retryConnection() {
@@ -1025,9 +1101,16 @@
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
                 this.showModal = true;
+                // Reseta lista de cidades
+                this.cidadesPorEstado = [];
             },
             editLead(lead) {
                 this.form = { ...lead };
+                // Carrega cidades do estado do lead para preencher o dropdown
+                if(this.form.estado) {
+                    this.carregarCidades(this.form.estado);
+                }
+                
                 // Garantir array se for antigo
                 if(!this.form.historicoMsg) this.form.historicoMsg = [];
                 // Migração legado se existir msg antiga
