@@ -252,9 +252,14 @@
                     <button v-if="filterStartDate || filterEndDate" @click="clearDates" class="px-2 text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
 
-                <div class="relative group">
-                    <i class="fa-solid fa-search absolute left-4 top-3 text-slate-400 group-hover:text-blue-500 transition"></i>
-                    <input v-model="searchQuery" type="text" placeholder="Buscar Cliente..." class="pl-12 pr-4 py-2.5 bg-slate-100 hover:bg-white focus:bg-white border border-transparent focus:border-blue-200 rounded-full text-sm focus:outline-none focus:ring-4 focus:ring-blue-50 w-64 transition-all">
+                <div class="flex items-center shadow-sm rounded-full">
+                    <div class="relative group">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition"></i>
+                        <input v-model="searchInput" @keyup.enter="executeSearch" type="text" placeholder="Buscar por Nome ou Contato..." class="pl-10 pr-4 py-3 bg-slate-100 hover:bg-white focus:bg-white border-y border-l border-slate-200 focus:border-blue-300 rounded-l-full text-sm focus:outline-none focus:ring-0 w-64 transition-all">
+                    </div>
+                    <button @click="executeSearch" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-r-full text-sm font-bold border border-blue-600 shadow-md transition hover:shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-filter"></i> Carregar
+                    </button>
                 </div>
                 <button @click="openModal()" class="btn-future text-white px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300">
                     <i class="fa-solid fa-plus"></i> Novo Lead
@@ -712,6 +717,7 @@
                 dbConnected: false,
                 errorMessage: '',
                 searchQuery: '',
+                searchInput: '',
                 filterStartDate: '',
                 filterEndDate: '',
                 showNotifications: false,
@@ -872,6 +878,14 @@
             clearDates() {
                 this.filterStartDate = ''; this.filterEndDate = '';
                 this.updateCharts();
+            },
+            executeSearch() {
+                this.searchQuery = this.searchInput;
+                if(this.searchInput) {
+                    this.showToast('Buscando...', 'fa-search');
+                } else {
+                    this.showToast('Filtro limpo', 'fa-rotate-left');
+                }
             },
             openNotification(lead) {
                 this.showNotifications = false;
