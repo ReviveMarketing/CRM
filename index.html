@@ -981,38 +981,66 @@
                 this.loadingMap = true;
 
                 const cityGroups = {};
+                
+                // Agrupamento mais preciso (Cidade + Estado)
                 this.leads.forEach(lead => {
                     if(lead.cidade || lead.estado) {
-                        // Tenta usar cidade, se não tiver usa estado
-                        const locName = lead.cidade ? `${lead.cidade.toUpperCase().trim()}` : lead.estado.toUpperCase().trim();
-                        const key = locName; 
-                        if(!cityGroups[key]) cityGroups[key] = { leads: [], fullQuery: lead.cidade ? `${lead.cidade}, ${lead.estado || 'Brasil'}` : `${lead.estado}, Brasil` };
+                        // Prioriza a cidade se existir, senão usa o estado
+                        // Remove espaços extras para garantir chave única
+                        const cidadeLimpa = lead.cidade ? lead.cidade.trim() : '';
+                        const estadoLimpo = lead.estado ? lead.estado.trim().toUpperCase() : '';
+                        
+                        let key = cidadeLimpa ? `${cidadeLimpa}-${estadoLimpo}` : estadoLimpo;
+                        let query = cidadeLimpa ? `${cidadeLimpa}, ${estadoLimpo}, Brasil` : `${estadoLimpo}, Brasil`;
+
+                        if(!cityGroups[key]) cityGroups[key] = { leads: [], fullQuery: query };
                         cityGroups[key].leads.push(lead);
                     }
                 });
 
                 for (const [key, data] of Object.entries(cityGroups)) {
-                    let coords = this.cityCache[key] || this.cityCache[key.split(',')[0]] || this.cityCache[data.leads[0].estado?.toUpperCase()];
+                    // Tenta cache exato primeiro
+                    let coords = this.cityCache[key];
                     
-                    // Fallback para API se não estiver no cache estático
+                    // Fallback para API
                     if (!coords) {
                         try {
                             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.fullQuery)}&limit=1`);
                             const apiData = await response.json();
                             if(apiData && apiData.length > 0) {
                                 coords = [parseFloat(apiData[0].lat), parseFloat(apiData[0].lon)];
-                                this.cityCache[key] = coords; // Salva no cache da sessão
+                                this.cityCache[key] = coords; 
                             }
                         } catch(e) { console.log('Erro geocoding', e); }
                     }
 
                     if (coords) {
+                        // Plota cada lead individualmente com Jitter (leve deslocamento)
                         data.leads.forEach(lead => {
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
                             const color = isClosed ? '#22C55E' : '#F97316'; 
-                            L.circleMarker(coords, { radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9 })
+                            
+                            // Adiciona um pequeno "jitter" (deslocamento aleatório) para evitar sobreposição exata
+                            // Aprox 500m-1km de variação
+                            const latJitter = coords[0] + (Math.random() - 0.5) * 0.008;
+                            const lngJitter = coords[1] + (Math.random() - 0.5) * 0.008;
+
+                            L.circleMarker([latJitter, lngJitter], { 
+                                radius: 8, 
+                                fillColor: color, 
+                                color: '#fff', 
+                                weight: 2, 
+                                opacity: 1, 
+                                fillOpacity: 0.9 
+                            })
                              .addTo(this.mapInstance)
-                             .bindPopup(`<strong class="text-sm">${lead.nome || 'Lead'}</strong><br>${lead.cidade || ''} - ${lead.estado || ''}<br>Status: ${lead.etapa}`);
+                             .bindPopup(`
+                                <div class="text-center">
+                                    <strong class="text-sm block mb-1">${lead.nome || 'Lead'}</strong>
+                                    <span class="text-xs text-slate-500">${lead.cidade || ''}/${lead.estado || ''}</span><br>
+                                    <span class="text-xs font-bold ${isClosed ? 'text-green-600' : 'text-orange-500'}">${lead.etapa}</span>
+                                </div>
+                             `);
                         });
                     }
                 }
