@@ -265,23 +265,31 @@
         <div class="flex-1 overflow-auto p-8 relative flex flex-col scroll-smooth">
 
             <div v-if="view === 'dashboard'" class="space-y-8 animate-fade-in">
-                <!-- KPI Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- KPI Cards - Expandido para 5 colunas -->
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                     <div class="glass-panel p-6 border-l-4 border-blue-500 relative overflow-hidden group">
                         <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Leads</p>
                         <h3 class="text-4xl font-extrabold text-slate-800">{{ filteredDashboardLeads.length }}</h3>
                     </div>
                     <div class="glass-panel p-6 border-l-4 border-yellow-500 relative overflow-hidden group">
                         <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Pipeline (Estimado)</p>
-                        <h3 class="text-4xl font-extrabold text-slate-800">{{ formatMoeda(totalEstimado) }}</h3>
+                        <h3 class="text-3xl font-extrabold text-slate-800">{{ formatMoeda(totalEstimado) }}</h3>
                     </div>
                     <div class="glass-panel p-6 border-l-4 border-green-500 relative overflow-hidden group">
                         <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Caixa (Realizado)</p>
-                        <h3 class="text-4xl font-extrabold text-green-600">{{ formatMoeda(totalRealizado) }}</h3>
+                        <h3 class="text-3xl font-extrabold text-green-600">{{ formatMoeda(totalRealizado) }}</h3>
                     </div>
                     <div class="glass-panel p-6 border-l-4 border-purple-500 relative overflow-hidden group">
                         <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Ciclo Médio Vendas</p>
                         <h3 class="text-4xl font-extrabold text-slate-800">{{ cicloMedioVendas }} <span class="text-sm font-medium text-slate-400">dias</span></h3>
+                    </div>
+                    <!-- NOVO CARD: Conversão Total -->
+                    <div class="glass-panel p-6 border-l-4 border-indigo-500 relative overflow-hidden group">
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Conversão Total</p>
+                        <h3 class="text-4xl font-extrabold text-indigo-600">{{ taxaFechamento }}%</h3>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div class="bg-indigo-500 h-1.5 rounded-full" :style="{width: taxaFechamento + '%'}"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -327,6 +335,55 @@
                     <h3 class="font-bold text-lg mb-6 text-slate-800">Funil de Etapas</h3>
                     <div class="h-72 w-full">
                         <canvas id="chartEtapas"></canvas>
+                    </div>
+                 </div>
+
+                 <!-- SESSÃO RESTAURADA: Ranking de Consultores -->
+                 <div class="glass-panel p-8 mt-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-slate-800">Ranking de Performance (Vendedores)</h3>
+                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">Top Performers</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100 sticky top-0 bg-white z-10">
+                                <tr>
+                                    <th class="px-6 py-3">Posição</th>
+                                    <th class="px-6 py-3">Consultor</th>
+                                    <th class="px-6 py-3 text-center">Leads Totais</th>
+                                    <th class="px-6 py-3 text-center">Vendas (Fechados)</th>
+                                    <th class="px-6 py-3 text-right">Conversão Individual</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                <tr v-for="(c, i) in rankingConsultores" :key="c.nome" class="hover:bg-slate-50 transition duration-200">
+                                    <td class="px-6 py-4">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-md" 
+                                             :class="i === 0 ? 'bg-yellow-400 ring-2 ring-yellow-200' : (i === 1 ? 'bg-slate-400' : (i === 2 ? 'bg-orange-400' : 'bg-slate-200 text-slate-500'))">
+                                            {{ i + 1 }}
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 font-bold text-slate-700 flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 flex items-center justify-center font-bold text-xs uppercase border border-blue-200">
+                                            {{ c.nome.charAt(0) }}
+                                        </div>
+                                        {{ c.nome }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center text-slate-600 font-medium">{{ c.leads }}</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold">{{ c.fechados }}</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="flex items-center justify-end gap-2">
+                                            <span class="font-bold text-slate-700">{{ c.conversao }}%</span>
+                                            <div class="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                <div class="h-full bg-blue-500" :style="{width: c.conversao + '%'}"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                  </div>
             </div>
@@ -689,6 +746,11 @@
             totalRealizado() { 
                 return this.filteredDashboardLeads.filter(l => l.etapa === 'Recebido (Fechado)').reduce((acc, l) => acc + (Number(l.receitaRealizada) || 0), 0); 
             },
+            taxaFechamento() {
+                const base = this.filteredDashboardLeads;
+                const fechados = base.filter(l => l.etapa === 'Recebido (Fechado)').length;
+                return base.length ? ((fechados / base.length) * 100).toFixed(1) : 0;
+            },
             cicloMedioVendas() {
                 const fechados = this.filteredDashboardLeads.filter(l => l.etapa === 'Recebido (Fechado)' && l.dataFechamento && l.dataCriacao);
                 if (fechados.length === 0) return 0;
@@ -714,6 +776,21 @@
                     item.taxa = item.total ? ((item.fechados / item.total) * 100).toFixed(1) : 0;
                     return item;
                 }).sort((a,b) => b.fechados - a.fechados);
+            },
+            rankingConsultores() {
+                const ranking = {};
+                this.listaConsultores.forEach(c => ranking[c] = { nome: c, leads: 0, fechados: 0, conversao: 0 });
+                // Usa a lista filtrada por data para o ranking também
+                this.filteredDashboardLeads.forEach(l => {
+                    if (l.consultor && ranking[l.consultor]) {
+                        ranking[l.consultor].leads++;
+                        if (l.etapa === 'Recebido (Fechado)') ranking[l.consultor].fechados++;
+                    }
+                });
+                return Object.values(ranking).map(r => {
+                    r.conversao = r.leads ? ((r.fechados / r.leads) * 100).toFixed(0) : 0;
+                    return r;
+                }).sort((a, b) => b.fechados - a.fechados);
             }
         },
         methods: {
