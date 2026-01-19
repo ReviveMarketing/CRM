@@ -489,10 +489,18 @@
                             <p class="text-xs text-slate-500 mb-3">{{ lead.campanha || '' }}</p>
                             
                             <div class="flex justify-between items-center border-t border-slate-100 pt-3">
-                                <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
-                                <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
-                                    <i class="fa-brands fa-whatsapp text-lg"></i>
-                                </a>
+                                <!-- NOVA DATA DE CRIAÇÃO -->
+                                <span v-if="lead.dataCriacao" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1" title="Data de Entrada">
+                                    <i class="fa-regular fa-calendar"></i> {{ new Date(lead.dataCriacao).toLocaleDateString('pt-BR') }}
+                                </span>
+                                <span v-else class="text-[10px] text-transparent">.</span>
+
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                                    <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
+                                        <i class="fa-brands fa-whatsapp text-lg"></i>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -525,7 +533,7 @@
             <div v-if="view === 'config'" class="max-w-3xl mx-auto w-full">
                  <div class="glass-panel p-10">
                     <h3 class="text-2xl font-bold mb-2 text-slate-800">Gestão de Consultores</h3>
-                    <p class="text-slate-500 mb-8">Adicione ou remova membros da equipe.</p>
+                    <p class="text-slate-500 mb-8">Adicione ou remova membros da equipe (Sincronizado em tempo real).</p>
                     
                     <div class="flex gap-3 mb-8 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition">
                         <input v-model="novoConsultor" type="text" placeholder="Nome do novo consultor..." class="flex-1 p-3 bg-transparent outline-none text-slate-700 font-medium">
@@ -697,7 +705,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Cache Estático de Capitais e Estados para carga instantânea
     const STATIC_COORDS = {
@@ -746,14 +754,14 @@
                 filterEndDate: '',
                 showNotifications: false,
                 loadingMap: false,
+                settingsUnsubscribe: null,
                 
                 showModal: false,
                 editingLead: null,
                 leads: [],
                 allLeads: [],
-                listaConsultores: ['João', 'Maria', 'Pedro'], 
+                listaConsultores: ['João', 'Maria', 'Pedro'], // Default fallback
                 novoConsultor: '',
-                // MODIFICADO: Etapas separadas
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
                 form: {
@@ -762,9 +770,10 @@
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
                     etapa: 'Primeiro Contato', 
-                    historicoMsg: [], // Array de objetos {tipo, texto, data}
-                    msgAtiva: false, // Flag para notificação
-                    dataFechamento: ''
+                    historicoMsg: [], 
+                    msgAtiva: false, 
+                    dataFechamento: '',
+                    dataCriacao: ''
                 },
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
@@ -784,8 +793,7 @@
         },
         mounted() {
             this.retryConnection();
-            const saved = localStorage.getItem('revive_consultores');
-            if(saved) this.listaConsultores = JSON.parse(saved);
+            // LocalStorage fallback removido em favor do Firestore sync
         },
         computed: {
             pageTitle() {
@@ -898,11 +906,17 @@
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
                 this.updateLeadsByRoom();
+                // Tenta conectar configurações da sala
+                if (this.dbConnected) this.connectSettings();
             },
             sairSala() {
                 this.salaAtual = '';
                 localStorage.removeItem('revive_sala_atual');
                 this.leads = [];
+                if (this.settingsUnsubscribe) {
+                    this.settingsUnsubscribe();
+                    this.settingsUnsubscribe = null;
+                }
                 if(this.mapInstance) { this.mapInstance.remove(); this.mapInstance = null; }
             },
             showToast(msg, icon='fa-check-circle') {
@@ -989,7 +1003,10 @@
                     db = getFirestore(app);
                     await signInAnonymously(auth);
                     onAuthStateChanged(auth, (user) => {
-                        if (user) this.connectDB();
+                        if (user) {
+                            this.connectDB();
+                            if(this.salaAtual) this.connectSettings();
+                        }
                     });
                 } catch(e) { console.error(e); }
             },
@@ -1003,6 +1020,32 @@
                     if(this.view === 'dashboard') this.updateCharts();
                     if(this.view === 'mapa') setTimeout(() => this.initMap(), 500);
                 });
+            },
+
+            // --- SINCRONIZAÇÃO DE CONFIGURAÇÕES (CONSULTORES) ---
+            connectSettings() {
+                if (this.settingsUnsubscribe) this.settingsUnsubscribe();
+                // Usa uma coleção separada 'config_salas' para armazenar metadados da sala
+                const docRef = doc(db, 'config_salas', this.salaAtual);
+                
+                this.settingsUnsubscribe = onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (data.consultores && Array.isArray(data.consultores)) {
+                            this.listaConsultores = data.consultores;
+                        }
+                    } else {
+                        // Se não existe, cria com o padrão
+                        setDoc(docRef, { consultores: ['João', 'Maria', 'Pedro'] });
+                    }
+                });
+            },
+
+            async updateConsultantsList() {
+                if (!this.salaAtual || !this.dbConnected) return;
+                await setDoc(doc(db, 'config_salas', this.salaAtual), { 
+                    consultores: this.listaConsultores 
+                }, { merge: true });
             },
 
             updateLeadsByRoom() {
@@ -1180,7 +1223,8 @@
                     etapa: 'Primeiro Contato', 
                     historicoMsg: [], 
                     msgAtiva: false,
-                    dataFechamento: ''
+                    dataFechamento: '',
+                    dataCriacao: new Date().toISOString() // Previne erro no form
                 };
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
@@ -1227,20 +1271,19 @@
                 this.closeModal();
             },
             closeModal() { this.showModal = false; },
-            addConsultor() {
+            async addConsultor() {
                 if(this.novoConsultor) {
                     this.listaConsultores.push(this.novoConsultor);
-                    localStorage.setItem('revive_consultores', JSON.stringify(this.listaConsultores));
+                    await this.updateConsultantsList(); // Sync com Firebase
                     this.novoConsultor = '';
                 }
             },
-            removeConsultor(index) {
+            async removeConsultor(index) {
                 this.listaConsultores.splice(index, 1);
-                localStorage.setItem('revive_consultores', JSON.stringify(this.listaConsultores));
+                await this.updateConsultantsList(); // Sync com Firebase
             }
         }
     }).mount('#app');
 </script>
 </body>
 </html>
-
