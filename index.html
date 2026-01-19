@@ -753,7 +753,8 @@
                 allLeads: [],
                 listaConsultores: ['João', 'Maria', 'Pedro'], 
                 novoConsultor: '',
-                etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta / Perdido'],
+                // MODIFICADO: Etapas separadas
+                etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
                 form: {
                     id: null, nome: '', telefone: '', beneficio: '', condicao: '',
@@ -883,7 +884,8 @@
                     map[uf].total++;
                     if(l.etapa === 'Recebido (Fechado)') {
                         map[uf].fechados++;
-                    } else if (l.etapa !== 'Sem Resposta / Perdido') {
+                    // MODIFICADO: Excluir novos status de perda da contagem "Em Andamento"
+                    } else if (l.etapa !== 'Sem Resposta' && l.etapa !== 'Perdido/Sem Possibilidade' && l.etapa !== 'Sem Resposta / Perdido') {
                         map[uf].andamento++;
                     }
                 });
@@ -1241,3 +1243,4 @@
 </script>
 </body>
 </html>
+
