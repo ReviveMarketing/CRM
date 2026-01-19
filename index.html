@@ -730,7 +730,7 @@
                 editingLead: null,
                 leads: [],
                 allLeads: [],
-                listaConsultores: ['João', 'Maria', 'Pedro'], // Default fallback
+                listaConsultores: [], // CORREÇÃO: Começa vazio para forçar sync
                 novoConsultor: '',
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
@@ -875,6 +875,7 @@
                 if(!this.salaInput) return;
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
+                this.listaConsultores = []; // CORREÇÃO: Limpa lista ao trocar sala para evitar dados fake
                 this.updateLeadsByRoom();
                 // Tenta conectar configurações da sala
                 if (this.dbConnected) this.connectSettings();
@@ -883,6 +884,7 @@
                 this.salaAtual = '';
                 localStorage.removeItem('revive_sala_atual');
                 this.leads = [];
+                this.listaConsultores = [];
                 if (this.settingsUnsubscribe) {
                     this.settingsUnsubscribe();
                     this.settingsUnsubscribe = null;
@@ -971,8 +973,6 @@
                     if (typeof __firebase_config !== 'undefined') {
                         config = JSON.parse(__firebase_config);
                     } else {
-                        // Fallback for non-canvas environments if necessary, though instructions say to use parsed config.
-                        // Throwing error if not present to ensure we catch misconfiguration.
                         console.warn("Firebase config not found in environment.");
                         return;
                     }
@@ -1012,7 +1012,6 @@
                     if(this.view === 'mapa') setTimeout(() => this.initMap(), 500);
                 }, (error) => {
                     console.error("Erro no listener de leads:", error);
-                    // Não mostrar toast de erro para não poluir a UI se for temporário
                 });
             },
 
@@ -1025,15 +1024,20 @@
                 this.settingsUnsubscribe = onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
-                        if (data.consultores && Array.isArray(data.consultores)) {
-                            this.listaConsultores = data.consultores;
+                        if (data && data.consultores && Array.isArray(data.consultores)) {
+                            this.listaConsultores = [...data.consultores]; // Força reatividade
                         }
                     } else {
-                        // Se não existe, cria com o padrão
-                        setDoc(docRef, { consultores: ['João', 'Maria', 'Pedro'] });
+                        // Se não existe, cria com o padrão e sincroniza para todos
+                        const padrao = ['João', 'Maria', 'Pedro'];
+                        // Define localmente PRIMEIRO para garantir que a lista apareça
+                        this.listaConsultores = padrao;
+                        // Tenta salvar no servidor (pode falhar silenciosamente se sem permissão, mas a lista local funciona)
+                        setDoc(docRef, { consultores: padrao }).catch(e => console.warn("Erro ao criar config inicial (ignorado):", e));
                     }
                 }, (error) => {
                      console.error("Erro no listener de settings:", error);
+                     if(this.listaConsultores.length === 0) this.listaConsultores = ['João', 'Maria', 'Pedro']; // Fallback local apenas em erro
                 });
             },
 
