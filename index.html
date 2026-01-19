@@ -509,10 +509,7 @@
 
             <div v-if="view === 'config'" class="max-w-3xl mx-auto w-full">
                  <div class="glass-panel p-10">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-2xl font-bold text-slate-800">Gestão de Consultores</h3>
-                        <span v-if="dbConnected" class="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-cloud"></i> Sincronizado</span>
-                    </div>
+                    <h3 class="text-2xl font-bold mb-2 text-slate-800">Gestão de Consultores</h3>
                     <p class="text-slate-500 mb-8">Adicione ou remova membros da equipe (Sincronizado em tempo real).</p>
                     
                     <div class="flex gap-3 mb-8 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition">
@@ -521,9 +518,6 @@
                     </div>
 
                     <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <li v-if="listaConsultores.length === 0" class="col-span-2 text-center text-slate-400 py-4 italic">
-                            <i class="fa-solid fa-spinner fa-spin mr-2"></i> Sincronizando equipe...
-                        </li>
                         <li v-for="(nome, index) in listaConsultores" :key="index" class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition">
                             <span class="font-medium text-slate-700">{{ nome }}</span>
                             <button @click="removeConsultor(index)" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-trash"></i></button>
@@ -736,7 +730,7 @@
                 editingLead: null,
                 leads: [],
                 allLeads: [],
-                listaConsultores: [], // CORREÇÃO: Começa vazio para forçar sync
+                listaConsultores: ['João', 'Maria', 'Pedro'], // Default fallback
                 novoConsultor: '',
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
@@ -881,7 +875,6 @@
                 if(!this.salaInput) return;
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
-                this.listaConsultores = []; // CORREÇÃO: Limpa lista ao trocar sala para evitar dados fake
                 this.updateLeadsByRoom();
                 // Tenta conectar configurações da sala
                 if (this.dbConnected) this.connectSettings();
@@ -890,7 +883,6 @@
                 this.salaAtual = '';
                 localStorage.removeItem('revive_sala_atual');
                 this.leads = [];
-                this.listaConsultores = [];
                 if (this.settingsUnsubscribe) {
                     this.settingsUnsubscribe();
                     this.settingsUnsubscribe = null;
@@ -1034,17 +1026,14 @@
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         if (data.consultores && Array.isArray(data.consultores)) {
-                            this.listaConsultores = [...data.consultores]; // Força reatividade
+                            this.listaConsultores = data.consultores;
                         }
                     } else {
-                        // Se não existe, cria com o padrão e sincroniza para todos
-                        const padrao = ['João', 'Maria', 'Pedro'];
-                        setDoc(docRef, { consultores: padrao });
-                        // O onSnapshot vai rodar de novo automaticamente após o setDoc
+                        // Se não existe, cria com o padrão
+                        setDoc(docRef, { consultores: ['João', 'Maria', 'Pedro'] });
                     }
                 }, (error) => {
                      console.error("Erro no listener de settings:", error);
-                     if(this.listaConsultores.length === 0) this.listaConsultores = ['João', 'Maria', 'Pedro']; // Fallback local apenas em erro
                 });
             },
 
