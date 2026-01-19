@@ -507,6 +507,29 @@
                 </div>
             </div>
 
+            <div v-if="view === 'mapa'" class="flex flex-col flex-1 h-full min-h-[600px]">
+                <div class="glass-panel p-8 flex flex-col flex-1">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="font-bold text-2xl text-slate-800">Mapa de Calor (Geolocalização)</h3>
+                            <p class="text-sm text-slate-500">Distribuição geográfica automática.</p>
+                        </div>
+                        <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white">
+                         <div class="map-wrapper">
+                             <div id="mapContainer"></div>
+                             <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
+                                <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando coordenadas...
+                            </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+            
             <div v-if="view === 'config'" class="max-w-3xl mx-auto w-full">
                  <div class="glass-panel p-10">
                     <h3 class="text-2xl font-bold mb-2 text-slate-800">Gestão de Consultores</h3>
@@ -681,7 +704,7 @@
 <!-- Módulos Firebase e Aplicação -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Cache Estático de Capitais e Estados para carga instantânea
@@ -703,10 +726,17 @@
         "MS": [-20.4697, -54.6201], "MATO GROSSO DO SUL": [-20.4697, -54.6201]
     };
 
+    const USER_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyC0rXC6dYNhRzth6aa_5qcmavy0Q8wS0nA",
+        authDomain: "crm-revive.firebaseapp.com",
+        projectId: "crm-revive",
+        storageBucket: "crm-revive.firebasestorage.app",
+        messagingSenderId: "159299012557",
+        appId: "1:159299012557:web:355a966f272c0191d8e684",
+        measurementId: "G-LVVTP722EM"
+    };
+
     let app, auth, db;
-    // ID da aplicação para estruturar os dados corretamente (PERSISTÊNCIA GARANTIDA)
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    
     const { createApp } = Vue;
 
     createApp({
@@ -730,7 +760,7 @@
                 editingLead: null,
                 leads: [],
                 allLeads: [],
-                listaConsultores: [], // CORREÇÃO: Começa vazio para forçar sync
+                listaConsultores: ['João', 'Maria', 'Pedro'], // Default fallback
                 novoConsultor: '',
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
@@ -875,7 +905,6 @@
                 if(!this.salaInput) return;
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
-                this.listaConsultores = []; // CORREÇÃO: Limpa lista ao trocar sala para evitar dados fake
                 this.updateLeadsByRoom();
                 // Tenta conectar configurações da sala
                 if (this.dbConnected) this.connectSettings();
@@ -884,7 +913,6 @@
                 this.salaAtual = '';
                 localStorage.removeItem('revive_sala_atual');
                 this.leads = [];
-                this.listaConsultores = [];
                 if (this.settingsUnsubscribe) {
                     this.settingsUnsubscribe();
                     this.settingsUnsubscribe = null;
@@ -968,84 +996,54 @@
             },
 
             async retryConnection() {
+                const config = USER_FIREBASE_CONFIG;
                 try {
-                    let config;
-                    if (typeof __firebase_config !== 'undefined') {
-                        config = JSON.parse(__firebase_config);
-                    } else {
-                        console.warn("Firebase config not found in environment.");
-                        return;
-                    }
-                    
                     try { app = initializeApp(config); } catch(e) { } 
                     auth = getAuth(app);
                     db = getFirestore(app);
-                    
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            throw new Error('No token');
-                        }
-                    } catch (tokenError) {
-                        console.warn("Custom token failed, falling back to anonymous:", tokenError);
-                        await signInAnonymously(auth);
-                    }
-                    
+                    await signInAnonymously(auth);
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
                             this.connectDB();
                             if(this.salaAtual) this.connectSettings();
                         }
                     });
-                } catch(e) { console.error("Firebase connection error:", e); }
+                } catch(e) { console.error(e); }
             },
 
             connectDB() {
-                // CORREÇÃO: Usar caminho completo para persistência de dados públicos
-                const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
+                const leadsRef = collection(db, 'leads');
                 onSnapshot(leadsRef, (snapshot) => {
                     this.dbConnected = true;
                     this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     this.updateLeadsByRoom();
                     if(this.view === 'dashboard') this.updateCharts();
                     if(this.view === 'mapa') setTimeout(() => this.initMap(), 500);
-                }, (error) => {
-                    console.error("Erro no listener de leads:", error);
                 });
             },
 
             // --- SINCRONIZAÇÃO DE CONFIGURAÇÕES (CONSULTORES) ---
             connectSettings() {
                 if (this.settingsUnsubscribe) this.settingsUnsubscribe();
-                // CORREÇÃO: Usar caminho completo e estrito para persistência (não usar coleção root)
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'config_salas', this.salaAtual);
+                // Usa uma coleção separada 'config_salas' para armazenar metadados da sala
+                const docRef = doc(db, 'config_salas', this.salaAtual);
                 
                 this.settingsUnsubscribe = onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
-                        if (data && data.consultores && Array.isArray(data.consultores)) {
-                            this.listaConsultores = [...data.consultores]; // Força reatividade
+                        if (data.consultores && Array.isArray(data.consultores)) {
+                            this.listaConsultores = data.consultores;
                         }
                     } else {
-                        // Se não existe, cria com o padrão e sincroniza para todos
-                        const padrao = ['João', 'Maria', 'Pedro'];
-                        // Define localmente PRIMEIRO para garantir que a lista apareça
-                        this.listaConsultores = padrao;
-                        // Tenta salvar no servidor (pode falhar silenciosamente se sem permissão, mas a lista local funciona)
-                        setDoc(docRef, { consultores: padrao }).catch(e => console.warn("Erro ao criar config inicial (ignorado):", e));
+                        // Se não existe, cria com o padrão
+                        setDoc(docRef, { consultores: ['João', 'Maria', 'Pedro'] });
                     }
-                }, (error) => {
-                     console.error("Erro no listener de settings:", error);
-                     if(this.listaConsultores.length === 0) this.listaConsultores = ['João', 'Maria', 'Pedro']; // Fallback local apenas em erro
                 });
             },
 
             async updateConsultantsList() {
                 if (!this.salaAtual || !this.dbConnected) return;
-                // CORREÇÃO: Usar caminho completo para salvar
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'config_salas', this.salaAtual);
-                await setDoc(docRef, { 
+                await setDoc(doc(db, 'config_salas', this.salaAtual), { 
                     consultores: this.listaConsultores 
                 }, { merge: true });
             },
@@ -1079,11 +1077,6 @@
                 this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.mapInstance);
                 
-                // Força o ajuste do tamanho do mapa para evitar tela cinza
-                setTimeout(() => {
-                   if(this.mapInstance) this.mapInstance.invalidateSize();
-                }, 100);
-
                 this.loadingMap = true;
 
                 const cityGroups = {};
@@ -1091,6 +1084,8 @@
                 // Agrupamento mais preciso (Cidade + Estado)
                 this.leads.forEach(lead => {
                     if(lead.cidade || lead.estado) {
+                        // Prioriza a cidade se existir, senão usa o estado
+                        // Remove espaços extras para garantir chave única
                         const cidadeLimpa = lead.cidade ? lead.cidade.trim() : '';
                         const estadoLimpo = lead.estado ? lead.estado.trim().toUpperCase() : '';
                         
@@ -1115,7 +1110,7 @@
                                 coords = [parseFloat(apiData[0].lat), parseFloat(apiData[0].lon)];
                                 this.cityCache[key] = coords; 
                             }
-                        } catch(e) { console.log('Erro geocoding (ignorado)', e); }
+                        } catch(e) { console.log('Erro geocoding', e); }
                     }
 
                     if (coords) {
@@ -1124,6 +1119,8 @@
                             const isClosed = lead.etapa === 'Recebido (Fechado)';
                             const color = isClosed ? '#22C55E' : '#F97316'; 
                             
+                            // Adiciona um pequeno "jitter" (deslocamento aleatório) para evitar sobreposição exata
+                            // Aprox 500m-1km de variação
                             const latJitter = coords[0] + (Math.random() - 0.5) * 0.008;
                             const lngJitter = coords[1] + (Math.random() - 0.5) * 0.008;
 
@@ -1210,8 +1207,7 @@
                 }
 
                 if (this.dbConnected) {
-                    // CORREÇÃO: Usar caminho completo para atualizar
-                    const leadRef = doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadId);
+                    const leadRef = doc(db, 'leads', leadId);
                     const updatePayload = { etapa: novaEtapa };
                     if(lead.dataFechamento) updatePayload.dataFechamento = lead.dataFechamento;
                     await updateDoc(leadRef, updatePayload);
@@ -1254,36 +1250,24 @@
                 this.showModal = true;
             },
             async saveLead() {
-                if (!this.dbConnected) return alert("Erro: Conexão com banco de dados não estabelecida.");
-                
-                try {
-                    const data = { ...this.form };
-                    data.sala = this.salaAtual;
-                    
-                    // Limpeza de campos indefinidos que travam o Firebase
-                    Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
-                    
-                    if (data.id) delete data.id; // Remove ID do corpo
+                if (!this.dbConnected) return alert("Erro: Offline.");
+                const data = { ...this.form };
+                data.sala = this.salaAtual;
+                delete data.id;
 
-                    const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
-                    
-                    if (this.editingLead) {
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id), data);
-                    } else {
-                        data.dataCriacao = new Date().toISOString();
-                        await addDoc(leadsRef, data);
-                    }
-                    this.closeModal();
-                    this.showToast('Salvo com sucesso!');
-                } catch (error) {
-                    console.error("Erro ao salvar:", error);
-                    alert("Erro ao salvar lead: " + error.message);
+                const leadsRef = collection(db, 'leads');
+                if (this.editingLead) {
+                    await updateDoc(doc(db, 'leads', this.form.id), data);
+                } else {
+                    data.dataCriacao = new Date().toISOString();
+                    await addDoc(leadsRef, data);
                 }
+                this.closeModal();
+                this.showToast('Salvo com sucesso!');
             },
             async deleteLead() {
                 if(!confirm('Excluir?')) return;
-                // CORREÇÃO: Usar caminho completo para excluir
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leads', this.form.id));
+                await deleteDoc(doc(db, 'leads', this.form.id));
                 this.closeModal();
             },
             closeModal() { this.showModal = false; },
