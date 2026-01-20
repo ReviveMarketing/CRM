@@ -488,8 +488,14 @@
                             </h4>
                             <p class="text-xs text-slate-500 mb-3">{{ lead.campanha || '' }}</p>
                             
+                            <!-- DATA e HORA adicionadas aqui no layout do footer -->
                             <div class="flex justify-between items-center border-t border-slate-100 pt-3">
-                                <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                                <div class="flex flex-col">
+                                    <span v-if="lead.dataCriacao" class="text-[10px] font-medium text-slate-400 flex items-center gap-1 mb-1" title="Data/Hora Cadastro">
+                                        <i class="fa-regular fa-clock"></i> {{ new Date(lead.dataCriacao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }}
+                                    </span>
+                                    <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                                </div>
                                 <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
                                     <i class="fa-brands fa-whatsapp text-lg"></i>
                                 </a>
