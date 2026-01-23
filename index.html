@@ -19,17 +19,12 @@
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #F8FAFC; color: #1E293B; }
         
-        /* Estilo Futurista & Elegante */
         .glass-panel {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 1);
             box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05);
             border-radius: 24px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .glass-panel:hover {
-            box-shadow: 0 20px 50px -10px rgba(37, 99, 235, 0.1);
         }
 
         .kanban-col {
@@ -46,35 +41,38 @@
             border: 1px solid transparent;
             position: relative;
             overflow: hidden;
+            scroll-margin-top: 100px; /* Para o scroll parar no lugar certo */
         }
         .card-lead:hover { 
             transform: translateY(-4px); 
             box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1); 
             border-color: #BFDBFE;
         }
-        .card-lead:active { cursor: grabbing; }
+
+        /* Efeito de destaque ao encontrar na busca */
+        .highlight-card {
+            animation: highlight-pulse 2s ease-in-out;
+            border-color: #3B82F6 !important;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3) !important;
+        }
+
+        @keyframes highlight-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
 
         .incomplete-lead {
             border: 2px solid #EF4444 !important;
             animation: pulse-red 2s infinite;
         }
 
-        /* Mapa Real - FULL */
-        .map-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            min-height: 600px;
-            border-radius: 24px;
-            overflow: hidden;
-            z-index: 1;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
-            border: 1px solid #E2E8F0;
-        }
         #mapContainer {
             width: 100%;
             height: 100%;
+            min-height: 600px;
             z-index: 10;
+            border-radius: 24px;
         }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -84,15 +82,12 @@
         .btn-future {
             background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
         }
         .btn-future:hover { 
             transform: translateY(-2px); 
             box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); 
         }
 
-        /* Chat Styles */
         .chat-bubble {
             padding: 10px 14px;
             border-radius: 12px;
@@ -100,30 +95,20 @@
             position: relative;
             max-width: 90%;
         }
-        .chat-coord {
-            background-color: #EFF6FF;
-            color: #1E40AF;
-            border-bottom-left-radius: 2px;
-            margin-right: auto;
-        }
-        .chat-vendedor {
-            background-color: #F0FDF4;
-            color: #166534;
-            border-bottom-right-radius: 2px;
-            margin-left: auto;
-            text-align: right;
-        }
+        .chat-coord { background-color: #EFF6FF; color: #1E40AF; margin-right: auto; border-bottom-left-radius: 2px; }
+        .chat-vendedor { background-color: #F0FDF4; color: #166534; margin-left: auto; text-align: right; border-bottom-right-radius: 2px; }
         
-        /* Loading & Overlay */
         .fullscreen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #F8FAFC; z-index: 9999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s ease;
         }
         
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .whatsapp-frame-placeholder {
+            background-color: #f0f2f5;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -192,6 +177,12 @@
                 <i class="fa-solid fa-map-location-dot w-5 transition group-hover:scale-110"></i> 
                 <span class="font-semibold text-sm">Geolocalização</span>
             </a>
+
+            <!-- Menu: Conexões (WhatsApp) -->
+            <a @click="changeView('conexoes')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'conexoes'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group">
+                <i class="fa-brands fa-whatsapp w-5 transition group-hover:scale-110 text-lg"></i> 
+                <span class="font-semibold text-sm">Conexões</span>
+            </a>
             
             <!-- Notificações -->
             <div class="relative">
@@ -252,6 +243,7 @@
                     <button v-if="filterStartDate || filterEndDate" @click="clearDates" class="px-2 text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
 
+                <!-- Busca com sugestões -->
                 <div class="flex items-center shadow-sm rounded-full">
                     <div class="relative group">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition"></i>
@@ -292,6 +284,7 @@
 
         <div class="flex-1 overflow-auto p-8 relative flex flex-col scroll-smooth">
 
+            <!-- DASHBOARD -->
             <div v-if="view === 'dashboard'" class="space-y-8 animate-fade-in">
                 <!-- KPI Cards - Expandido para 5 colunas -->
                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
@@ -447,64 +440,86 @@
 
             </div>
 
-            <div v-if="view === 'pipeline'" class="flex gap-6 h-full overflow-x-auto pb-4 px-2">
-                <div v-for="etapa in etapas" :key="etapa" class="min-w-[320px] w-[320px] flex flex-col">
-                    <div class="flex justify-between items-center mb-4 px-1">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : 'bg-blue-500'"></span>
-                            <h3 class="font-bold text-slate-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
-                        </div>
-                        <span class="bg-white border border-slate-200 text-slate-600 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm">{{ getLeadsByEtapa(etapa).length }}</span>
+            <!-- PIPELINE -->
+            <div v-if="view === 'pipeline'" class="flex flex-col h-full overflow-hidden">
+                <!-- Filtro de Vendedor (NOVO) -->
+                <div class="px-2 py-4 flex items-center gap-4">
+                    <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-filter text-blue-500"></i> Filtrar Vendedor:</label>
+                    <div class="relative group">
+                        <select v-model="pipelineFilterConsultant" class="appearance-none bg-white border border-slate-300 hover:border-blue-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer transition">
+                            <option value="">Todos</option>
+                            <option v-for="c in listaConsultores" :value="c">{{ c }}</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
                     </div>
-                    
-                    <div class="kanban-col flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar" 
-                         @drop="onDrop($event, etapa)" 
-                         @dragover.prevent 
-                         @dragenter.prevent>
+                </div>
+
+                <div class="flex gap-6 h-full overflow-x-auto pb-4 px-2">
+                    <div v-for="etapa in etapas" :key="etapa" class="min-w-[320px] w-[320px] flex flex-col">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : 'bg-blue-500'"></span>
+                                <h3 class="font-bold text-slate-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
+                            </div>
+                            <span class="bg-white border border-slate-200 text-slate-600 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm">{{ getLeadsByEtapa(etapa).length }}</span>
+                        </div>
                         
-                        <div v-for="lead in getLeadsByEtapa(etapa)" 
-                             :key="lead.id" 
-                             draggable="true" 
-                             @dragstart="startDrag($event, lead)"
-                             @click="editLead(lead)"
-                             class="card-lead p-5 rounded-2xl shadow-sm border border-slate-100 group"
-                             :class="{'incomplete-lead': isIncomplete(lead)}">
+                        <div class="kanban-col flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar" 
+                            @drop="onDrop($event, etapa)" 
+                            @dragover.prevent 
+                            @dragenter.prevent>
                             
-                            <div v-if="isIncomplete(lead)" title="Incompleto: Falta Nome" class="absolute -right-2 -top-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md z-10 font-bold">!</div>
+                            <!-- ADICIONADO ID PARA O CARD -->
+                            <div v-for="lead in getLeadsByEtapa(etapa)" 
+                                :key="lead.id" 
+                                :id="'lead-' + lead.id"
+                                draggable="true" 
+                                @dragstart="startDrag($event, lead)"
+                                @click="editLead(lead)"
+                                class="card-lead p-5 rounded-2xl shadow-sm border border-slate-100 group"
+                                :class="{'incomplete-lead': isIncomplete(lead)}">
+                                
+                                <div v-if="isIncomplete(lead)" title="Incompleto: Falta Nome" class="absolute -right-2 -top-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md z-10 font-bold">!</div>
 
-                            <!-- Indicador de msg pendente -->
-                            <div v-if="lead.msgAtiva" class="bg-red-50 text-red-600 text-[10px] p-2 rounded-lg mb-3 border border-red-100 flex items-center justify-between animate-pulse">
-                                <span class="font-bold flex items-center gap-1"><i class="fa-solid fa-comment-dots"></i> Nova mensagem</span>
-                                <span class="text-[9px]">Ver agora</span>
-                            </div>
-
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wide">{{ lead.consultor || 'Livre' }}</span>
-                                <span class="text-[10px] text-slate-400 font-medium">{{ lead.origem || '?' }}</span>
-                            </div>
-                            
-                            <h4 class="font-bold text-slate-800 text-base mb-1 leading-snug group-hover:text-blue-600 transition-colors" :class="{'text-red-500 italic': !lead.nome}">
-                                {{ lead.nome || 'Sem Nome' }}
-                            </h4>
-                            <p class="text-xs text-slate-500 mb-3">{{ lead.campanha || '' }}</p>
-                            
-                            <!-- DATA e HORA adicionadas aqui no layout do footer -->
-                            <div class="flex justify-between items-center border-t border-slate-100 pt-3">
-                                <div class="flex flex-col">
-                                    <span v-if="lead.dataCriacao" class="text-[10px] font-medium text-slate-400 flex items-center gap-1 mb-1" title="Data/Hora Cadastro">
-                                        <i class="fa-regular fa-clock"></i> {{ new Date(lead.dataCriacao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }}
-                                    </span>
-                                    <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                                <!-- Indicador de msg pendente -->
+                                <div v-if="lead.msgAtiva" class="bg-red-50 text-red-600 text-[10px] p-2 rounded-lg mb-3 border border-red-100 flex items-center justify-between animate-pulse">
+                                    <span class="font-bold flex items-center gap-1"><i class="fa-solid fa-comment-dots"></i> Nova mensagem</span>
+                                    <span class="text-[9px]">Ver agora</span>
                                 </div>
-                                <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
-                                    <i class="fa-brands fa-whatsapp text-lg"></i>
-                                </a>
+
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wide">{{ lead.consultor || 'Livre' }}</span>
+                                    <span class="text-[10px] text-slate-400 font-medium">{{ lead.origem || '?' }}</span>
+                                </div>
+                                
+                                <h4 class="font-bold text-slate-800 text-base mb-1 leading-snug group-hover:text-blue-600 transition-colors" :class="{'text-red-500 italic': !lead.nome}">
+                                    {{ lead.nome || 'Sem Nome' }}
+                                </h4>
+                                <p class="text-xs text-slate-500 mb-1">{{ lead.campanha || '' }}</p>
+                                <!-- GARANTINDO O CONTATO VISÍVEL -->
+                                <p class="text-xs text-slate-500 flex items-center gap-1 mb-3 font-medium bg-slate-50 p-1 rounded inline-block">
+                                    <i class="fa-solid fa-phone text-[10px] text-slate-400"></i> {{ lead.telefone }}
+                                </p>
+                                
+                                <!-- DATA e HORA adicionadas aqui no layout do footer -->
+                                <div class="flex justify-between items-center border-t border-slate-100 pt-3">
+                                    <div class="flex flex-col">
+                                        <span v-if="lead.dataCriacao" class="text-[10px] font-medium text-slate-400 flex items-center gap-1 mb-1" title="Data/Hora Cadastro">
+                                            <i class="fa-regular fa-clock"></i> {{ new Date(lead.dataCriacao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }}
+                                        </span>
+                                        <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
+                                    </div>
+                                    <a :href="'https://wa.me/55'+cleanPhone(lead.telefone)" target="_blank" @click.stop class="text-green-500 hover:text-white hover:bg-green-500 bg-green-50 p-2 rounded-full transition-all duration-300 transform hover:scale-110 shadow-sm">
+                                        <i class="fa-brands fa-whatsapp text-lg"></i>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- MAPA -->
             <div v-if="view === 'mapa'" class="flex flex-col flex-1 h-full min-h-[600px]">
                 <div class="glass-panel p-8 flex flex-col flex-1">
                     <div class="flex justify-between items-center mb-6">
@@ -515,6 +530,8 @@
                         <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
                             <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
                             <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
+                            <!-- Legenda Vermelha -->
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-200 inline-block"></span> Perdido</span>
                         </div>
                     </div>
                     <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white">
@@ -523,6 +540,97 @@
                              <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
                                 <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando coordenadas...
                             </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOVO: TELA DE CONEXÕES MULTI-WHATSAPP -->
+            <div v-if="view === 'conexoes'" class="w-full h-full flex flex-col animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
+                    
+                    <!-- Coluna da Esquerda: LISTA DE VENDEDORES -->
+                    <div class="glass-panel p-6 col-span-1 flex flex-col">
+                        <h3 class="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
+                            <i class="fa-brands fa-whatsapp text-green-500"></i> Hub de Atendimento
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-6">Gerencie as instâncias de cada vendedor.</p>
+
+                        <!-- Input Adicionar -->
+                        <div class="flex gap-2 mb-6">
+                            <input v-model="newSessionName" @keyup.enter="addNewSession" placeholder="Ex: Whats João..." class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-400">
+                            <button @click="addNewSession" class="bg-green-500 hover:bg-green-600 text-white px-3 rounded-xl shadow-md"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2">
+                            <div v-for="(session, index) in whatsappSessions" :key="index" 
+                                @click="activeSessionIndex = index"
+                                class="p-4 rounded-xl cursor-pointer border transition flex justify-between items-center group relative overflow-hidden"
+                                :class="activeSessionIndex === index ? 'bg-green-50 border-green-500 shadow-sm' : 'bg-white border-slate-100 hover:border-green-300'">
+                                
+                                <div class="flex items-center gap-3 relative z-10">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                                         :class="activeSessionIndex === index ? 'bg-green-500' : 'bg-slate-300'">
+                                         {{ session.nome.charAt(0).toUpperCase() }}
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-sm" :class="activeSessionIndex === index ? 'text-green-800' : 'text-slate-700'">{{ session.nome }}</p>
+                                        <p class="text-[10px] text-slate-400">Clique para acessar</p>
+                                    </div>
+                                </div>
+
+                                <button @click.stop="removeSession(index)" class="text-slate-300 hover:text-red-500 relative z-10 p-2"><i class="fa-solid fa-trash text-xs"></i></button>
+                            </div>
+                            
+                            <div v-if="whatsappSessions.length === 0" class="text-center py-10 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
+                                <p class="text-xs">Nenhum vendedor conectado.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna da Direita: ÁREA DE NAVEGAÇÃO (SIMULADA) -->
+                    <div class="glass-panel col-span-1 lg:col-span-3 flex flex-col overflow-hidden relative p-0 bg-slate-100">
+                         
+                         <div v-if="activeSessionIndex !== null && whatsappSessions[activeSessionIndex]" class="flex flex-col h-full w-full">
+                             <!-- Browser Header Fake -->
+                             <div class="h-12 bg-slate-200 border-b border-slate-300 flex items-center px-4 gap-4">
+                                 <div class="flex gap-1.5">
+                                     <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                                     <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                                     <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                                 </div>
+                                 <div class="flex-1 bg-white h-8 rounded-md flex items-center px-3 text-xs text-slate-500 gap-2 mx-4 shadow-sm">
+                                     <i class="fa-solid fa-lock text-[10px]"></i> web.whatsapp.com
+                                 </div>
+                                 <div class="text-xs font-bold text-slate-600">
+                                     {{ whatsappSessions[activeSessionIndex].nome }}
+                                 </div>
+                             </div>
+
+                             <!-- Browser Body (Placeholder) -->
+                             <div class="flex-1 relative whatsapp-frame-placeholder flex flex-col items-center justify-center text-center p-8">
+                                 <div class="bg-white/90 backdrop-blur p-8 rounded-3xl shadow-2xl max-w-lg">
+                                     <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-4xl shadow-lg shadow-green-200">
+                                         <i class="fa-brands fa-whatsapp"></i>
+                                     </div>
+                                     <h2 class="text-2xl font-bold text-slate-800 mb-2">Conectar ao WhatsApp Web</h2>
+                                     <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+                                         Devido às políticas de segurança do navegador, o WhatsApp Web não pode ser aberto diretamente dentro desta janela (iframe).
+                                     </p>
+                                     
+                                     <button @click="openExternalWhatsapp" class="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-3">
+                                         <span>Abrir Painel Flutuante</span>
+                                         <i class="fa-solid fa-external-link-alt"></i>
+                                     </button>
+                                     <p class="text-[10px] text-slate-400 mt-4">Ao clicar, uma nova janela abrirá para você escanear o QR Code deste vendedor.</p>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <div v-else class="flex flex-col items-center justify-center h-full text-slate-400">
+                             <i class="fa-brands fa-whatsapp text-6xl mb-4 text-slate-300"></i>
+                             <h3 class="text-xl font-bold text-slate-500">Selecione um Vendedor</h3>
+                             <p class="text-sm">Escolha uma instância no menu lateral para visualizar.</p>
                          </div>
                     </div>
                 </div>
@@ -549,6 +657,7 @@
         </div>
     </main>
 
+    <!-- MODAL LEAD -->
     <div v-if="showModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-scale-up">
             
@@ -614,6 +723,12 @@
                          <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Benefício / Assunto</label>
                             <input v-model="form.beneficio" type="text" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700">
+                        </div>
+
+                        <!-- ADICIONADO: Campo Fratura -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Fratura</label>
+                            <input v-model="form.fratura" type="text" placeholder="Ex: Fêmur, Tíbia, Punho..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition font-medium text-slate-700">
                         </div>
                     </div>
 
@@ -697,6 +812,7 @@
             </div>
         </div>
     </div>
+
 </div>
 
 <!-- Módulos Firebase e Aplicação -->
@@ -755,27 +871,34 @@
                 
                 showModal: false,
                 editingLead: null,
+                
+                // VARIAVEIS MULTI-SESSION WHATSAPP
+                whatsappSessions: [],
+                newSessionName: '',
+                activeSessionIndex: null,
+                
+                // Filtro Pipeline
+                pipelineFilterConsultant: '',
+
                 leads: [],
                 allLeads: [],
                 listaConsultores: ['João', 'Maria', 'Pedro'], 
                 novoConsultor: '',
-                // MODIFICADO: Etapas separadas
                 etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
                 form: {
                     id: null, nome: '', telefone: '', beneficio: '', condicao: '',
-                    cidade: '', estado: '', obs: '', consultor: '',
+                    cidade: '', estado: '', obs: '', consultor: '', fratura: '',
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
                     etapa: 'Primeiro Contato', 
-                    historicoMsg: [], // Array de objetos {tipo, texto, data}
-                    msgAtiva: false, // Flag para notificação
+                    historicoMsg: [], 
+                    msgAtiva: false,
                     dataFechamento: ''
                 },
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
 
-                // Locais (IBGE)
                 estados: [],
                 cidadesPorEstado: [],
 
@@ -792,10 +915,20 @@
             this.retryConnection();
             const saved = localStorage.getItem('revive_consultores');
             if(saved) this.listaConsultores = JSON.parse(saved);
+            
+            // Carregar Sessoes Salvas
+            const savedSessions = localStorage.getItem('revive_whatsapp_sessions');
+            if(savedSessions) this.whatsappSessions = JSON.parse(savedSessions);
         },
         computed: {
             pageTitle() {
-                const titles = {dashboard: 'Dashboard Executivo', pipeline: 'Pipeline de Vendas', mapa: 'Inteligência Geográfica', config: 'Configurações'};
+                const titles = {
+                    dashboard: 'Dashboard Executivo', 
+                    pipeline: 'Pipeline de Vendas', 
+                    mapa: 'Inteligência Geográfica', 
+                    config: 'Configurações',
+                    conexoes: 'Central de Conexões'
+                };
                 return titles[this.view] || 'Revive CRM';
             },
             searchSuggestions() {
@@ -880,7 +1013,6 @@
                     return r;
                 }).sort((a, b) => b.fechados - a.fechados);
             },
-            // NOVO COMPUTED: Stats por Estado
             statsPorEstado() {
                 const map = {};
                 this.filteredDashboardLeads.forEach(l => {
@@ -890,7 +1022,6 @@
                     map[uf].total++;
                     if(l.etapa === 'Recebido (Fechado)') {
                         map[uf].fechados++;
-                    // MODIFICADO: Excluir novos status de perda da contagem "Em Andamento"
                     } else if (l.etapa !== 'Sem Resposta' && l.etapa !== 'Perdido/Sem Possibilidade' && l.etapa !== 'Sem Resposta / Perdido') {
                         map[uf].andamento++;
                     }
@@ -928,18 +1059,33 @@
                     this.showToast('Filtro limpo', 'fa-rotate-left');
                 }
             },
-            // SELEÇÃO DE SUGESTÃO
-            selectSuggestion(lead) {
-                this.editLead(lead);
+            async selectSuggestion(lead) {
                 this.showSuggestions = false;
-                // Opcional: Limpar busca ou manter
                 this.searchInput = '';
+                
+                // 1. Mudar para view Pipeline
+                this.view = 'pipeline';
+                
+                // 2. Esperar renderização
+                await this.$nextTick();
+                
+                // 3. Rolar até o card e destacar
+                setTimeout(() => {
+                    const el = document.getElementById('lead-' + lead.id);
+                    if(el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('highlight-card');
+                        // Remover classe depois da animação
+                        setTimeout(() => el.classList.remove('highlight-card'), 2000);
+                    }
+                    // 4. Abrir modal
+                    this.editLead(lead);
+                }, 500); 
             },
             openNotification(lead) {
                 this.showNotifications = false;
                 this.editLead(lead);
             },
-            // FUNÇÕES DE CHAT DO COORDENADOR
             enviarMsg(tipo) {
                 const texto = tipo === 'coord' ? this.novaMsgCoord : this.novaMsgVendedor;
                 if(!texto) return;
@@ -953,15 +1099,14 @@
                 });
 
                 if(tipo === 'coord') {
-                    this.form.msgAtiva = true; // Ativa notificação
+                    this.form.msgAtiva = true;
                     this.novaMsgCoord = '';
                 } else {
                     this.novaMsgVendedor = '';
                 }
             },
             marcarComoLido() {
-                this.form.msgAtiva = false; // Remove notificação
-                // Adiciona log de visualização
+                this.form.msgAtiva = false;
                 if(!this.form.historicoMsg) this.form.historicoMsg = [];
                 this.form.historicoMsg.push({
                     tipo: 'system',
@@ -970,7 +1115,6 @@
                 });
             },
 
-            // --- FUNÇÕES IBGE ---
             async carregarEstados() {
                 try {
                     const res = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
@@ -1023,7 +1167,14 @@
                 if(newView === 'mapa') setTimeout(() => this.initMap(), 300); 
             },
             
-            getLeadsByEtapa(etapa) { return this.filteredLeads.filter(l => l.etapa === etapa); },
+            getLeadsByEtapa(etapa) { 
+                return this.filteredLeads.filter(l => {
+                    const matchEtapa = l.etapa === etapa;
+                    // Filtro de Consultor do Pipeline
+                    const matchConsultant = this.pipelineFilterConsultant ? l.consultor === this.pipelineFilterConsultant : true;
+                    return matchEtapa && matchConsultant;
+                });
+            },
             isIncomplete(lead) { return lead.telefone && !lead.nome; },
             cleanPhone(phone) { return phone ? phone.replace(/\D/g,'') : ''; },
             formatMoeda(val) { return Number(val).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); },
@@ -1044,11 +1195,8 @@
 
                 const cityGroups = {};
                 
-                // Agrupamento mais preciso (Cidade + Estado)
                 this.leads.forEach(lead => {
                     if(lead.cidade || lead.estado) {
-                        // Prioriza a cidade se existir, senão usa o estado
-                        // Remove espaços extras para garantir chave única
                         const cidadeLimpa = lead.cidade ? lead.cidade.trim() : '';
                         const estadoLimpo = lead.estado ? lead.estado.trim().toUpperCase() : '';
                         
@@ -1061,10 +1209,7 @@
                 });
 
                 for (const [key, data] of Object.entries(cityGroups)) {
-                    // Tenta cache exato primeiro
                     let coords = this.cityCache[key];
-                    
-                    // Fallback para API
                     if (!coords) {
                         try {
                             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.fullQuery)}&limit=1`);
@@ -1077,13 +1222,11 @@
                     }
 
                     if (coords) {
-                        // Plota cada lead individualmente com Jitter (leve deslocamento)
                         data.leads.forEach(lead => {
-                            const isClosed = lead.etapa === 'Recebido (Fechado)';
-                            const color = isClosed ? '#22C55E' : '#F97316'; 
+                            let color = '#F97316'; 
+                            if (lead.etapa === 'Recebido (Fechado)') color = '#22C55E';
+                            else if (lead.etapa === 'Perdido/Sem Possibilidade') color = '#EF4444';
                             
-                            // Adiciona um pequeno "jitter" (deslocamento aleatório) para evitar sobreposição exata
-                            // Aprox 500m-1km de variação
                             const latJitter = coords[0] + (Math.random() - 0.5) * 0.008;
                             const lngJitter = coords[1] + (Math.random() - 0.5) * 0.008;
 
@@ -1100,7 +1243,7 @@
                                 <div class="text-center">
                                     <strong class="text-sm block mb-1">${lead.nome || 'Lead'}</strong>
                                     <span class="text-xs text-slate-500">${lead.cidade || ''}/${lead.estado || ''}</span><br>
-                                    <span class="text-xs font-bold ${isClosed ? 'text-green-600' : 'text-orange-500'}">${lead.etapa}</span>
+                                    <span class="text-xs font-bold ${lead.etapa === 'Recebido (Fechado)' ? 'text-green-600' : (lead.etapa === 'Perdido/Sem Possibilidade' ? 'text-red-500' : 'text-orange-500')}">${lead.etapa}</span>
                                 </div>
                              `);
                         });
@@ -1180,7 +1323,7 @@
             openModal() {
                 this.form = { 
                     id: null, nome: '', telefone: '', beneficio: '', condicao: '',
-                    cidade: '', estado: '', obs: '', consultor: '',
+                    cidade: '', estado: '', obs: '', consultor: '', fratura: '',
                     origem: 'Meta', campanha: '',
                     receitaEstimada: 0, receitaRealizada: 0,
                     etapa: 'Primeiro Contato', 
@@ -1191,19 +1334,15 @@
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
                 this.showModal = true;
-                // Reseta lista de cidades
                 this.cidadesPorEstado = [];
             },
             editLead(lead) {
                 this.form = { ...lead };
-                // Carrega cidades do estado do lead para preencher o dropdown
                 if(this.form.estado) {
                     this.carregarCidades(this.form.estado);
                 }
                 
-                // Garantir array se for antigo
                 if(!this.form.historicoMsg) this.form.historicoMsg = [];
-                // Migração legado se existir msg antiga
                 if(this.form.msgCoordenador && this.form.historicoMsg.length === 0) {
                      this.form.historicoMsg.push({ tipo: 'coord', texto: this.form.msgCoordenador, data: new Date().toISOString() });
                 }
@@ -1243,6 +1382,27 @@
             removeConsultor(index) {
                 this.listaConsultores.splice(index, 1);
                 localStorage.setItem('revive_consultores', JSON.stringify(this.listaConsultores));
+            },
+            // NOVOS MÉTODOS MULTI-SESSION
+            addNewSession() {
+                if(!this.newSessionName) return;
+                this.whatsappSessions.push({
+                    nome: this.newSessionName,
+                    id: Date.now()
+                });
+                localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
+                this.newSessionName = '';
+                this.showToast('Vendedor adicionado!', 'fa-user-plus');
+            },
+            removeSession(index) {
+                if(confirm('Remover este painel?')) {
+                    this.whatsappSessions.splice(index, 1);
+                    localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
+                    if(this.activeSessionIndex === index) this.activeSessionIndex = null;
+                }
+            },
+            openExternalWhatsapp() {
+                window.open('https://web.whatsapp.com/', '_blank', 'width=1000,height=700');
             }
         }
     }).mount('#app');
