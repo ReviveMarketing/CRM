@@ -527,32 +527,6 @@
                 </div>
             </div>
 
-            <!-- MAPA -->
-            <div v-if="view === 'mapa'" class="flex flex-col flex-1 h-full min-h-[600px]">
-                <div class="glass-panel p-8 flex flex-col flex-1">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 class="font-bold text-2xl text-slate-800">Mapa de Calor (Geolocalização)</h3>
-                            <p class="text-sm text-slate-500">Distribuição geográfica automática.</p>
-                        </div>
-                        <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
-                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
-                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
-                            <!-- Legenda Vermelha -->
-                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-200 inline-block"></span> Perdido</span>
-                        </div>
-                    </div>
-                    <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white">
-                         <div class="map-wrapper">
-                             <div id="mapContainer"></div>
-                             <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
-                                <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando coordenadas...
-                            </div>
-                         </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- NOVO: TELA DE CONEXÕES MULTI-WHATSAPP -->
             <div v-if="view === 'conexoes'" class="w-full h-full flex flex-col animate-fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
@@ -567,7 +541,7 @@
                         <!-- Input Adicionar -->
                         <div class="flex gap-2 mb-6">
                             <input v-model="newSessionName" @keyup.enter="addNewSession" placeholder="Ex: Whats João..." class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-400">
-                            <button @click="addNewSession" class="bg-green-500 hover:bg-green-600 text-white px-3 rounded-xl shadow-md"><i class="fa-solid fa-plus"></i></button>
+                            <button type="button" @click="addNewSession" class="bg-green-500 hover:bg-green-600 text-white px-3 rounded-xl shadow-md transition transform active:scale-95"><i class="fa-solid fa-plus"></i></button>
                         </div>
 
                         <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2">
@@ -587,7 +561,7 @@
                                     </div>
                                 </div>
 
-                                <button @click.stop="removeSession(index)" class="text-slate-300 hover:text-red-500 relative z-10 p-2"><i class="fa-solid fa-trash text-xs"></i></button>
+                                <button type="button" @click.stop="removeSession(index)" class="text-slate-300 hover:text-red-500 relative z-10 p-2"><i class="fa-solid fa-trash text-xs"></i></button>
                             </div>
                             
                             <div v-if="whatsappSessions.length === 0" class="text-center py-10 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
@@ -1386,8 +1360,9 @@
                 this.showToast('Salvo com sucesso!');
             },
             async deleteLead() {
-                if(!confirm('Excluir?')) return;
+                // REMOVIDO confirm() que bloqueia execução em iframe
                 await deleteDoc(doc(db, 'leads', this.form.id));
+                this.showToast('Lead excluído permanentemente!', 'fa-trash');
                 this.closeModal();
             },
             closeModal() { this.showModal = false; },
@@ -1404,9 +1379,12 @@
             },
             // NOVOS MÉTODOS MULTI-SESSION
             addNewSession() {
-                if(!this.newSessionName) return;
+                if(!this.newSessionName || this.newSessionName.trim() === '') {
+                    this.showToast('Digite um nome para adicionar!', 'fa-circle-exclamation');
+                    return;
+                }
                 this.whatsappSessions.push({
-                    nome: this.newSessionName,
+                    nome: this.newSessionName.trim(),
                     id: Date.now()
                 });
                 localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
@@ -1414,11 +1392,12 @@
                 this.showToast('Vendedor adicionado!', 'fa-user-plus');
             },
             removeSession(index) {
-                if(confirm('Remover este painel?')) {
-                    this.whatsappSessions.splice(index, 1);
-                    localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
-                    if(this.activeSessionIndex === index) this.activeSessionIndex = null;
-                }
+                // REMOVIDO confirm() que bloqueia execução em iframe
+                // Ação imediata para garantir funcionamento
+                this.whatsappSessions.splice(index, 1);
+                localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
+                if(this.activeSessionIndex === index) this.activeSessionIndex = null;
+                this.showToast('Painel removido!', 'fa-trash');
             },
             openExternalWhatsapp() {
                 window.open('https://web.whatsapp.com/', '_blank', 'width=1000,height=700');
