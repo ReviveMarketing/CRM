@@ -41,7 +41,7 @@
             border: 1px solid transparent;
             position: relative;
             overflow: hidden;
-            scroll-margin-top: 100px; /* Para o scroll parar no lugar certo */
+            scroll-margin-top: 200px; /* Ajuste para o scroll parar com margem do topo */
         }
         .card-lead:hover { 
             transform: translateY(-4px); 
@@ -49,17 +49,25 @@
             border-color: #BFDBFE;
         }
 
-        /* Efeito de destaque ao encontrar na busca */
+        /* Efeito de destaque "Flash" (Luz/Piscada) */
         .highlight-card {
-            animation: highlight-pulse 2s ease-in-out;
+            animation: flash-focus 1.2s ease-in-out 2; /* Pisca 2 vezes rápido */
+            z-index: 50 !important; /* Fica acima de tudo */
+            position: relative;
             border-color: #3B82F6 !important;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3) !important;
         }
 
-        @keyframes highlight-pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        @keyframes flash-focus {
+            0%, 100% { 
+                background-color: white; 
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+                transform: scale(1);
+            }
+            50% { 
+                background-color: #DBEAFE; /* Fundo azulado claro */
+                box-shadow: 0 0 40px 10px rgba(59, 130, 246, 0.6); /* Luz forte externa */
+                transform: scale(1.05); /* Aumenta um pouco */
+            }
         }
 
         .incomplete-lead {
@@ -1055,6 +1063,8 @@
                 this.showSuggestions = false;
                 if(this.searchInput) {
                     this.showToast('Buscando...', 'fa-search');
+                    // FIX: Força a navegação para o Pipeline para ver o resultado
+                    this.view = 'pipeline'; 
                 } else {
                     this.showToast('Filtro limpo', 'fa-rotate-left');
                 }
@@ -1062,6 +1072,8 @@
             async selectSuggestion(lead) {
                 this.showSuggestions = false;
                 this.searchInput = '';
+                // FIX: Limpa o filtro de texto para garantir que o card do lead exista no DOM e possa ser rolado
+                this.searchQuery = ''; 
                 
                 // 1. Mudar para view Pipeline
                 this.view = 'pipeline';
@@ -1069,17 +1081,24 @@
                 // 2. Esperar renderização
                 await this.$nextTick();
                 
-                // 3. Rolar até o card e destacar
+                // 3. Rolar até o card e destacar (Com delay visual inteligente)
                 setTimeout(() => {
                     const el = document.getElementById('lead-' + lead.id);
                     if(el) {
                         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         el.classList.add('highlight-card');
-                        // Remover classe depois da animação
-                        setTimeout(() => el.classList.remove('highlight-card'), 2000);
+                        
+                        // Remover classe de destaque após a animação (aprox 2.5s)
+                        setTimeout(() => el.classList.remove('highlight-card'), 2500);
+                        
+                        // 4. Abrir modal com um pequeno delay para que o usuário veja o "piscar" primeiro
+                        setTimeout(() => {
+                             this.editLead(lead);
+                        }, 800); 
+                    } else {
+                         // Fallback se o card não for encontrado (ex: filtro ativo)
+                         this.editLead(lead);
                     }
-                    // 4. Abrir modal
-                    this.editLead(lead);
                 }, 500); 
             },
             openNotification(lead) {
