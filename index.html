@@ -119,6 +119,15 @@
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             opacity: 0.8;
         }
+
+        /* Animação Drawer Lateral */
+        @keyframes slide-in-right {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+            animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
     </style>
 </head>
 <body>
@@ -200,7 +209,7 @@
                 <span class="font-semibold text-sm">Relatórios</span>
             </a>
             
-            <!-- Notificações -->
+            <!-- Notificações (Botão no Menu) -->
             <div class="relative">
                 <a @click="showNotifications = !showNotifications" :class="{'bg-blue-50 text-blue-700': showNotifications}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group justify-between">
                     <div class="flex items-center gap-4">
@@ -211,20 +220,6 @@
                         {{ unreadNotifications.length }}
                     </span>
                 </a>
-                
-                <!-- Dropdown COM SCROLL (CORRIGIDO) -->
-                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-slate-100 z-50 p-2 space-y-1 max-h-80 overflow-y-auto custom-scrollbar">
-                    <div v-if="unreadNotifications.length === 0" class="text-center text-slate-400 py-4 text-xs">
-                        Tudo limpo por aqui!
-                    </div>
-                    <div v-for="notif in unreadNotifications" :key="notif.id" @click="openNotification(notif)" class="p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition border-b border-slate-50 last:border-0">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="font-bold text-xs text-blue-600 truncate w-2/3">{{ notif.nome || 'Lead sem nome' }}</span>
-                            <span class="text-[10px] text-yellow-600 bg-yellow-100 px-1 rounded">Coord</span>
-                        </div>
-                        <p class="text-xs text-slate-500 line-clamp-2 italic">Nova mensagem pendente...</p>
-                    </div>
-                </div>
             </div>
 
             <a @click="changeView('config')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'config'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group mt-auto">
@@ -732,6 +727,71 @@
             </div>
         </div>
     </main>
+
+    <!-- DRAWER DE NOTIFICAÇÕES (SLIDE-OVER) -->
+    <div v-if="showNotifications" class="fixed inset-0 z-[100] flex justify-end">
+        <!-- Backdrop -->
+        <div @click="showNotifications = false" class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity"></div>
+        
+        <!-- Panel Lateral -->
+        <div class="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right border-l border-slate-100">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500 text-xl">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800 leading-tight">Central de Alertas</h3>
+                        <p class="text-xs text-slate-500 font-medium">Mensagens não lidas e avisos</p>
+                    </div>
+                </div>
+                <button @click="showNotifications = false" class="w-8 h-8 rounded-full bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 transition flex items-center justify-center shadow-sm border border-slate-200">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50">
+                <div v-if="unreadNotifications.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
+                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300 text-3xl">
+                        <i class="fa-regular fa-bell-slash"></i>
+                    </div>
+                    <p class="font-bold text-slate-600">Tudo limpo por aqui!</p>
+                    <p class="text-xs mt-1 max-w-[200px]">Você não tem novas mensagens ou alertas pendentes no momento.</p>
+                </div>
+
+                <div v-else class="p-4 space-y-3">
+                    <div v-for="notif in unreadNotifications" :key="notif.id" 
+                         @click="openNotification(notif)" 
+                         class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition group relative overflow-hidden">
+                        
+                        <!-- Barra lateral indicadora -->
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
+
+                        <div class="flex justify-between items-start mb-2 pl-2">
+                            <h4 class="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">{{ notif.nome || 'Lead sem nome' }}</h4>
+                            <span class="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-100">COORDENADOR</span>
+                        </div>
+                        
+                        <div class="pl-2">
+                            <p class="text-xs text-slate-500 italic mb-3 line-clamp-2 bg-slate-50 p-2 rounded border border-slate-50">
+                                <i class="fa-solid fa-quote-left text-slate-300 mr-1 text-[10px]"></i>
+                                Nova mensagem pendente de resposta...
+                            </p>
+                            
+                            <div class="flex justify-between items-center text-[10px] text-slate-400 font-medium">
+                                <span class="flex items-center gap-1"><i class="fa-brands fa-whatsapp text-green-500"></i> {{ notif.telefone }}</span>
+                                <span>Ver agora <i class="fa-solid fa-arrow-right ml-1"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="unreadNotifications.length > 0" class="p-4 bg-white border-t border-slate-100 text-center">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total de {{ unreadNotifications.length }} alertas pendentes</p>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL LEAD -->
     <div v-if="showModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
