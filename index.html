@@ -78,8 +78,7 @@
         #mapContainer {
             width: 100%;
             height: 100%;
-            min-height: 600px;
-            z-index: 10;
+            z-index: 1; /* Z-Index ajustado */
             border-radius: 24px;
         }
 
@@ -191,6 +190,12 @@
                 <i class="fa-brands fa-whatsapp w-5 transition group-hover:scale-110 text-lg"></i> 
                 <span class="font-semibold text-sm">Conexões</span>
             </a>
+
+            <!-- NOVO: Menu Relatórios -->
+            <a @click="changeView('relatorios')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'relatorios'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group">
+                <i class="fa-solid fa-file-export w-5 transition group-hover:scale-110"></i> 
+                <span class="font-semibold text-sm">Relatórios</span>
+            </a>
             
             <!-- Notificações -->
             <div class="relative">
@@ -204,8 +209,8 @@
                     </span>
                 </a>
                 
-                <!-- Dropdown -->
-                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 p-2 space-y-1">
+                <!-- Dropdown COM SCROLL (ALTERADO) -->
+                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 p-2 space-y-1 max-h-72 overflow-y-auto custom-scrollbar">
                     <div v-if="unreadNotifications.length === 0" class="text-center text-slate-400 py-4 text-xs">
                         Tudo limpo por aqui!
                     </div>
@@ -419,30 +424,22 @@
                  <div class="glass-panel p-8 mt-6">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="font-bold text-lg text-slate-800">Performance Geográfica (Por Estado)</h3>
-                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase"><i class="fa-solid fa-map-location mr-1"></i> Regional</span>
+                        <p class="text-sm text-slate-500">Distribuição geográfica automática.</p>
                     </div>
-                    <div class="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-sm text-left border-collapse">
-                            <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100 sticky top-0 bg-white z-10">
-                                <tr>
-                                    <th class="px-6 py-3">Estado (UF)</th>
-                                    <th class="px-6 py-3 text-center">Total Leads</th>
-                                    <th class="px-6 py-3 text-center text-orange-500">Em Andamento</th>
-                                    <th class="px-6 py-3 text-center text-green-600">Fechados</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                <tr v-for="(s, index) in statsPorEstado" :key="index" class="hover:bg-slate-50 transition duration-200">
-                                    <td class="px-6 py-4 font-bold text-slate-700">{{ s.estado }}</td>
-                                    <td class="px-6 py-4 text-center text-slate-600 font-medium">{{ s.total }}</td>
-                                    <td class="px-6 py-4 text-center text-orange-500 font-bold">{{ s.andamento }}</td>
-                                    <td class="px-6 py-4 text-center text-green-600 font-bold">{{ s.fechados }}</td>
-                                </tr>
-                                <tr v-if="statsPorEstado.length === 0">
-                                    <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">Nenhum dado geográfico registrado ainda.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-200 inline-block"></span> Perdido</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white h-[600px]">
+                         <div class="w-full h-full relative">
+                             <div id="mapContainer"></div>
+                             <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
+                                <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando coordenadas...
+                            </div>
+                         </div>
                     </div>
                  </div>
 
@@ -450,20 +447,34 @@
 
             <!-- PIPELINE -->
             <div v-if="view === 'pipeline'" class="flex flex-col h-full overflow-hidden">
-                <!-- Filtro de Vendedor (NOVO) -->
-                <div class="px-2 py-4 flex items-center gap-4">
-                    <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-filter text-blue-500"></i> Filtrar Vendedor:</label>
-                    <div class="relative group">
-                        <select v-model="pipelineFilterConsultant" class="appearance-none bg-white border border-slate-300 hover:border-blue-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer transition">
-                            <option value="">Todos</option>
-                            <option v-for="c in listaConsultores" :value="c">{{ c }}</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
+                <!-- Filtros Avançados (Vendedor e Etapa) -->
+                <div class="px-2 py-4 flex items-center gap-4 bg-slate-50/50 backdrop-blur rounded-xl mb-2">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-user-tie text-blue-500"></i> Vendedor:</label>
+                        <div class="relative group">
+                            <select v-model="pipelineFilterConsultant" class="appearance-none bg-white border border-slate-300 hover:border-blue-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer transition">
+                                <option value="">Todos</option>
+                                <option v-for="c in listaConsultores" :value="c">{{ c }}</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-filter text-indigo-500"></i> Etapa (Filtro):</label>
+                        <div class="relative group">
+                            <select v-model="pipelineFilterEtapa" class="appearance-none bg-white border border-slate-300 hover:border-indigo-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 cursor-pointer transition">
+                                <option value="">Todas as Etapas</option>
+                                <option v-for="e in etapas" :value="e">{{ e }}</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
                     </div>
                 </div>
 
                 <div class="flex gap-6 h-full overflow-x-auto pb-4 px-2">
-                    <div v-for="etapa in etapas" :key="etapa" class="min-w-[320px] w-[320px] flex flex-col">
+                    <!-- LOOP AGORA FILTRA COLUNAS -->
+                    <div v-for="etapa in filteredEtapas" :key="etapa" class="min-w-[320px] w-[320px] flex flex-col transition-all duration-300">
                         <div class="flex justify-between items-center mb-4 px-1">
                             <div class="flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : 'bg-blue-500'"></span>
@@ -527,33 +538,7 @@
                 </div>
             </div>
 
-            <!-- MAPA -->
-            <div v-if="view === 'mapa'" class="flex flex-col flex-1 h-full min-h-[600px]">
-                <div class="glass-panel p-8 flex flex-col flex-1">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 class="font-bold text-2xl text-slate-800">Mapa de Calor (Geolocalização)</h3>
-                            <p class="text-sm text-slate-500">Distribuição geográfica automática.</p>
-                        </div>
-                        <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
-                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
-                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
-                            <!-- Legenda Vermelha -->
-                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-200 inline-block"></span> Perdido</span>
-                        </div>
-                    </div>
-                    <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white">
-                         <div class="map-wrapper">
-                             <div id="mapContainer"></div>
-                             <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
-                                <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando coordenadas...
-                            </div>
-                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- NOVO: TELA DE CONEXÕES MULTI-WHATSAPP -->
+            <!-- TELA DE CONEXÕES MULTI-WHATSAPP -->
             <div v-if="view === 'conexoes'" class="w-full h-full flex flex-col animate-fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
                     
@@ -567,7 +552,7 @@
                         <!-- Input Adicionar -->
                         <div class="flex gap-2 mb-6">
                             <input v-model="newSessionName" @keyup.enter="addNewSession" placeholder="Ex: Whats João..." class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-400">
-                            <button @click="addNewSession" class="bg-green-500 hover:bg-green-600 text-white px-3 rounded-xl shadow-md"><i class="fa-solid fa-plus"></i></button>
+                            <button type="button" @click="addNewSession" class="bg-green-500 hover:bg-green-600 text-white px-3 rounded-xl shadow-md transition transform active:scale-95"><i class="fa-solid fa-plus"></i></button>
                         </div>
 
                         <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2">
@@ -587,7 +572,7 @@
                                     </div>
                                 </div>
 
-                                <button @click.stop="removeSession(index)" class="text-slate-300 hover:text-red-500 relative z-10 p-2"><i class="fa-solid fa-trash text-xs"></i></button>
+                                <button type="button" @click.stop="removeSession(index)" class="text-slate-300 hover:text-red-500 relative z-10 p-2"><i class="fa-solid fa-trash text-xs"></i></button>
                             </div>
                             
                             <div v-if="whatsappSessions.length === 0" class="text-center py-10 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
@@ -596,11 +581,9 @@
                         </div>
                     </div>
 
-                    <!-- Coluna da Direita: ÁREA DE NAVEGAÇÃO (SIMULADA) -->
+                    <!-- Coluna da Direita: ÁREA DE NAVEGAÇÃO -->
                     <div class="glass-panel col-span-1 lg:col-span-3 flex flex-col overflow-hidden relative p-0 bg-slate-100">
-                         
                          <div v-if="activeSessionIndex !== null && whatsappSessions[activeSessionIndex]" class="flex flex-col h-full w-full">
-                             <!-- Browser Header Fake -->
                              <div class="h-12 bg-slate-200 border-b border-slate-300 flex items-center px-4 gap-4">
                                  <div class="flex gap-1.5">
                                      <div class="w-3 h-3 rounded-full bg-red-400"></div>
@@ -615,7 +598,6 @@
                                  </div>
                              </div>
 
-                             <!-- Browser Body (Placeholder) -->
                              <div class="flex-1 relative whatsapp-frame-placeholder flex flex-col items-center justify-center text-center p-8">
                                  <div class="bg-white/90 backdrop-blur p-8 rounded-3xl shadow-2xl max-w-lg">
                                      <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-4xl shadow-lg shadow-green-200">
@@ -625,7 +607,6 @@
                                      <p class="text-slate-500 text-sm mb-6 leading-relaxed">
                                          Devido às políticas de segurança do navegador, o WhatsApp Web não pode ser aberto diretamente dentro desta janela (iframe).
                                      </p>
-                                     
                                      <button @click="openExternalWhatsapp" class="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-3">
                                          <span>Abrir Painel Flutuante</span>
                                          <i class="fa-solid fa-external-link-alt"></i>
@@ -634,12 +615,68 @@
                                  </div>
                              </div>
                          </div>
-
                          <div v-else class="flex flex-col items-center justify-center h-full text-slate-400">
                              <i class="fa-brands fa-whatsapp text-6xl mb-4 text-slate-300"></i>
                              <h3 class="text-xl font-bold text-slate-500">Selecione um Vendedor</h3>
                              <p class="text-sm">Escolha uma instância no menu lateral para visualizar.</p>
                          </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOVA TELA: RELATÓRIOS E EXPORTAÇÃO -->
+            <div v-if="view === 'relatorios'" class="max-w-4xl mx-auto w-full animate-fade-in">
+                <div class="glass-panel p-10">
+                    <div class="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 text-2xl">
+                            <i class="fa-solid fa-file-export"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-slate-800">Central de Exportação</h3>
+                            <p class="text-slate-500">Gere relatórios detalhados ou resumos diários.</p>
+                        </div>
+                    </div>
+
+                    <!-- Filtros de Exportação -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Data do Relatório</label>
+                            <input type="date" v-model="exportData.date" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Filtrar Consultor (Opcional)</label>
+                            <select v-model="exportData.consultor" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
+                                <option value="">Todos os Consultores</option>
+                                <option v-for="c in listaConsultores" :value="c">{{ c }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Excel / CSV -->
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 hover:border-green-300 transition group">
+                            <div class="flex items-center gap-3 mb-3">
+                                <i class="fa-solid fa-file-csv text-green-500 text-2xl"></i>
+                                <h4 class="font-bold text-slate-800">Planilha Completa</h4>
+                            </div>
+                            <p class="text-xs text-slate-500 mb-6">Exporta todos os dados filtrados para Excel/CSV (Nome, Número, Obs, Fratura).</p>
+                            <button @click="generateCSV" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-100 transition transform group-hover:-translate-y-1">
+                                <i class="fa-solid fa-download mr-2"></i> Baixar Planilha
+                            </button>
+                        </div>
+
+                        <!-- Word / Resumo -->
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 hover:border-blue-300 transition group">
+                            <div class="flex items-center gap-3 mb-3">
+                                <i class="fa-solid fa-file-word text-blue-500 text-2xl"></i>
+                                <h4 class="font-bold text-slate-800">Resumo Diário (Word)</h4>
+                            </div>
+                            <p class="text-xs text-slate-500 mb-6">Gera um documento formatado com o resumo dos atendimentos do dia.</p>
+                            <button @click="generateWord" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-100 transition transform group-hover:-translate-y-1">
+                                <i class="fa-solid fa-file-lines mr-2"></i> Baixar Resumo DOC
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -743,6 +780,14 @@
                     <!-- Coluna 2: Gestão, Valores & Observações (RESTAURADO) -->
                     <div class="space-y-6">
                         <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> Gestão & Valores</h4>
+
+                        <!-- NOVO: Seletor de Etapa no Modal -->
+                        <div class="p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                            <label class="block text-xs font-bold text-indigo-800 mb-1.5 uppercase"><i class="fa-solid fa-trello mr-1"></i> Mover para Etapa do Pipeline</label>
+                            <select v-model="form.etapa" class="w-full p-2 bg-white border border-indigo-200 rounded-lg outline-none font-bold text-indigo-700 cursor-pointer">
+                                <option v-for="etapa in etapas" :value="etapa">{{ etapa }}</option>
+                            </select>
+                        </div>
 
                         <div class="grid grid-cols-2 gap-5">
                              <div>
@@ -887,6 +932,13 @@
                 
                 // Filtro Pipeline
                 pipelineFilterConsultant: '',
+                pipelineFilterEtapa: '', // NOVO
+
+                // Dados de Exportação (NOVO)
+                exportData: {
+                    date: new Date().toISOString().split('T')[0],
+                    consultor: ''
+                },
 
                 leads: [],
                 allLeads: [],
@@ -935,7 +987,8 @@
                     pipeline: 'Pipeline de Vendas', 
                     mapa: 'Inteligência Geográfica', 
                     config: 'Configurações',
-                    conexoes: 'Central de Conexões'
+                    conexoes: 'Central de Conexões',
+                    relatorios: 'Relatórios & Exportação'
                 };
                 return titles[this.view] || 'Revive CRM';
             },
@@ -957,6 +1010,12 @@
                     );
                 }
                 return result;
+            },
+            filteredEtapas() {
+                if (this.pipelineFilterEtapa) {
+                    return [this.pipelineFilterEtapa];
+                }
+                return this.etapas;
             },
             filteredDashboardLeads() {
                 let result = this.leads;
@@ -1202,6 +1261,12 @@
                 const container = document.getElementById('mapContainer');
                 if(!container) return;
                 
+                // Verificação de segurança se L (Leaflet) está carregado
+                if (typeof L === 'undefined') {
+                    console.error("Leaflet não carregado.");
+                    return;
+                }
+                
                 if (this.mapInstance) {
                     this.mapInstance.remove();
                     this.mapInstance = null;
@@ -1386,8 +1451,8 @@
                 this.showToast('Salvo com sucesso!');
             },
             async deleteLead() {
-                if(!confirm('Excluir?')) return;
                 await deleteDoc(doc(db, 'leads', this.form.id));
+                this.showToast('Lead excluído permanentemente!', 'fa-trash');
                 this.closeModal();
             },
             closeModal() { this.showModal = false; },
@@ -1404,9 +1469,12 @@
             },
             // NOVOS MÉTODOS MULTI-SESSION
             addNewSession() {
-                if(!this.newSessionName) return;
+                if(!this.newSessionName || this.newSessionName.trim() === '') {
+                    this.showToast('Digite um nome para adicionar!', 'fa-circle-exclamation');
+                    return;
+                }
                 this.whatsappSessions.push({
-                    nome: this.newSessionName,
+                    nome: this.newSessionName.trim(),
                     id: Date.now()
                 });
                 localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
@@ -1414,14 +1482,108 @@
                 this.showToast('Vendedor adicionado!', 'fa-user-plus');
             },
             removeSession(index) {
-                if(confirm('Remover este painel?')) {
-                    this.whatsappSessions.splice(index, 1);
-                    localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
-                    if(this.activeSessionIndex === index) this.activeSessionIndex = null;
-                }
+                this.whatsappSessions.splice(index, 1);
+                localStorage.setItem('revive_whatsapp_sessions', JSON.stringify(this.whatsappSessions));
+                if(this.activeSessionIndex === index) this.activeSessionIndex = null;
+                this.showToast('Painel removido!', 'fa-trash');
             },
             openExternalWhatsapp() {
                 window.open('https://web.whatsapp.com/', '_blank', 'width=1000,height=700');
+            },
+
+            // --- FUNÇÕES DE EXPORTAÇÃO ---
+            getFilteredExportData() {
+                let filtered = this.leads;
+                
+                // Filtro por Data (se selecionada)
+                if(this.exportData.date) {
+                    filtered = filtered.filter(l => (l.dataCriacao || '').slice(0,10) === this.exportData.date);
+                }
+
+                // Filtro por Consultor (se selecionado)
+                if(this.exportData.consultor) {
+                    filtered = filtered.filter(l => l.consultor === this.exportData.consultor);
+                }
+
+                return filtered;
+            },
+            generateCSV() {
+                const data = this.getFilteredExportData();
+                if(data.length === 0) return this.showToast('Nenhum dado para exportar na data selecionada.', 'fa-circle-exclamation');
+
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM para acentos
+                csvContent += "Nome,Telefone,Fratura,Observacao\n"; // Cabeçalho
+
+                data.forEach(l => {
+                    const nome = (l.nome || l.telefone || 'Sem Nome').replace(/,/g, ' '); // Evitar quebra do CSV
+                    const fone = (l.telefone || '').replace(/,/g, ' ');
+                    const fratura = (l.fratura || 'N/A').replace(/,/g, ' ');
+                    const obs = (l.obs || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, ';'); 
+                    
+                    csvContent += `${nome},${fone},${fratura},${obs}\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `Relatorio_Revive_${this.exportData.date}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                this.showToast('Planilha gerada!', 'fa-file-csv');
+            },
+            generateWord() {
+                const data = this.getFilteredExportData();
+                if(data.length === 0) return this.showToast('Nenhum dado para exportar.', 'fa-circle-exclamation');
+
+                let htmlContent = `
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head><meta charset='utf-8'><title>Relatório Diário</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; }
+                        th { background-color: #f2f2f2; }
+                        h1 { color: #2563EB; }
+                    </style>
+                    </head><body>
+                    <h1>Relatório Diário - Revive CRM</h1>
+                    <p><strong>Data:</strong> ${this.exportData.date.split('-').reverse().join('/')}</p>
+                    <p><strong>Total de Registros:</strong> ${data.length}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome / Identificação</th>
+                                <th>Telefone</th>
+                                <th>Fratura</th>
+                                <th>Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.forEach(l => {
+                     htmlContent += `
+                        <tr>
+                            <td>${l.nome || 'Sem Nome'}</td>
+                            <td>${l.telefone || '-'}</td>
+                            <td>${l.fratura || '-'}</td>
+                            <td>${l.obs || ''}</td>
+                        </tr>
+                     `;
+                });
+
+                htmlContent += `</tbody></table></body></html>`;
+
+                const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Resumo_Revive_${this.exportData.date}.doc`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                this.showToast('Documento Word gerado!', 'fa-file-word');
             }
         }
     }).mount('#app');
