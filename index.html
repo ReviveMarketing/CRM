@@ -75,16 +75,19 @@
             animation: pulse-red 2s infinite;
         }
 
-        #mapContainer {
+        /* Mapas */
+        #mapContainer, #dashboardMapContainer {
             width: 100%;
             height: 100%;
-            z-index: 1; /* Z-Index ajustado */
+            z-index: 1;
             border-radius: 24px;
         }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+        /* Scrollbar customizada */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
         .btn-future {
             background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
@@ -209,8 +212,8 @@
                     </span>
                 </a>
                 
-                <!-- Dropdown COM SCROLL (ALTERADO) -->
-                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 p-2 space-y-1 max-h-72 overflow-y-auto custom-scrollbar">
+                <!-- Dropdown COM SCROLL (CORRIGIDO) -->
+                <div v-if="showNotifications" class="absolute left-0 top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-slate-100 z-50 p-2 space-y-1 max-h-80 overflow-y-auto custom-scrollbar">
                     <div v-if="unreadNotifications.length === 0" class="text-center text-slate-400 py-4 text-xs">
                         Tudo limpo por aqui!
                     </div>
@@ -419,6 +422,31 @@
                         </table>
                     </div>
                  </div>
+
+                 <!-- RESTAURADO: Performance Geográfica (NO DASHBOARD) -->
+                 <div class="glass-panel p-8 mt-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-slate-800">Performance Geográfica (Por Estado)</h3>
+                        <p class="text-sm text-slate-500">Distribuição geográfica automática.</p>
+                    </div>
+                    <div class="flex justify-between items-center mb-4">
+                         <!-- Legend -->
+                        <div class="flex items-center gap-6 text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 inline-block"></span> Fechados</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-200 inline-block"></span> Em Andamento</span>
+                            <span class="flex items-center gap-2 font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-200 inline-block"></span> Perdido</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200 ring-4 ring-white h-[500px]">
+                            <div class="w-full h-full relative">
+                                <!-- ID DIFERENTE para não conflitar com a view 'mapa' -->
+                                <div id="dashboardMapContainer"></div>
+                                <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
+                                    <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando mapa...
+                                </div>
+                            </div>
+                    </div>
+                </div>
             </div>
 
             <!-- MAPA RESTAURADO (TELA CHEIA) -->
@@ -426,9 +454,20 @@
                 <div class="glass-panel w-full h-full p-0 overflow-hidden relative shadow-2xl border-0">
                      <div id="mapContainer" class="w-full h-full z-10"></div>
                      
-                     <div class="absolute top-4 left-4 z-[500] bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-slate-200">
-                        <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-location-dot text-blue-500 mr-2"></i>Mapa de Calor</h3>
-                        <p class="text-[10px] text-slate-500 mt-1">{{ leads.length }} leads mapeados</p>
+                     <!-- LEGENDA ADICIONADA AO MAPA FULLSCREEN -->
+                     <div class="absolute top-4 left-4 z-[500] space-y-2">
+                        <div class="bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-slate-200">
+                            <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-location-dot text-blue-500 mr-2"></i>Mapa de Calor</h3>
+                            <p class="text-[10px] text-slate-500 mt-1">{{ leads.length }} leads mapeados</p>
+                        </div>
+                        <div class="bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-slate-200">
+                             <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Legenda</h4>
+                             <div class="space-y-1.5">
+                                 <div class="flex items-center gap-2 text-xs font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span> Venda Fechada</div>
+                                 <div class="flex items-center gap-2 text-xs font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span> Em Andamento</div>
+                                 <div class="flex items-center gap-2 text-xs font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-sm"></span> Perdido/Sem Sucesso</div>
+                             </div>
+                        </div>
                      </div>
 
                      <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
@@ -1220,8 +1259,11 @@
                     this.dbConnected = true;
                     this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     this.updateLeadsByRoom();
-                    if(this.view === 'dashboard') this.updateCharts();
-                    if(this.view === 'mapa') setTimeout(() => this.initMap(), 500);
+                    if(this.view === 'dashboard') {
+                        this.updateCharts();
+                        setTimeout(() => this.initMap('dashboardMapContainer'), 500);
+                    }
+                    if(this.view === 'mapa') setTimeout(() => this.initMap('mapContainer'), 500);
                 });
             },
 
@@ -1233,8 +1275,11 @@
             async changeView(newView) {
                 this.view = newView;
                 await this.$nextTick();
-                if(newView === 'dashboard') this.updateCharts();
-                if(newView === 'mapa') setTimeout(() => this.initMap(), 300); 
+                if(newView === 'dashboard') {
+                    this.updateCharts();
+                    setTimeout(() => this.initMap('dashboardMapContainer'), 300);
+                }
+                if(newView === 'mapa') setTimeout(() => this.initMap('mapContainer'), 300); 
             },
             
             getLeadsByEtapa(etapa) { 
@@ -1249,29 +1294,34 @@
             cleanPhone(phone) { return phone ? phone.replace(/\D/g,'') : ''; },
             formatMoeda(val) { return Number(val).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); },
             
-            async initMap() {
-                const container = document.getElementById('mapContainer');
+            async initMap(targetId) {
+                const container = document.getElementById(targetId);
                 if(!container) return;
                 
-                // Verificação de segurança se L (Leaflet) está carregado
                 if (typeof L === 'undefined') {
                     console.error("Leaflet não carregado.");
                     return;
                 }
                 
-                if (this.mapInstance) {
-                    this.mapInstance.remove();
-                    this.mapInstance = null;
+                // Remove mapa existente se houver conflito no mesmo container ou instância global
+                // Para simplificar, vamos usar uma variável diferente se for o dashboard
+                if (targetId === 'mapContainer') {
+                     if (this.mapInstance) { this.mapInstance.remove(); this.mapInstance = null; }
+                } else {
+                     if (this.dashboardMapInstance) { this.dashboardMapInstance.remove(); this.dashboardMapInstance = null; }
                 }
                 
-                this.mapInstance = L.map('mapContainer').setView([-14.2350, -51.9253], 4);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.mapInstance);
+                const map = L.map(targetId).setView([-14.2350, -51.9253], 4);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                 
+                if (targetId === 'mapContainer') this.mapInstance = map;
+                else this.dashboardMapInstance = map;
+
                 this.loadingMap = true;
 
                 const cityGroups = {};
                 
-                this.leads.forEach(lead => {
+                this.filteredDashboardLeads.forEach(lead => {
                     if(lead.cidade || lead.estado) {
                         const cidadeLimpa = lead.cidade ? lead.cidade.trim() : '';
                         const estadoLimpo = lead.estado ? lead.estado.trim().toUpperCase() : '';
@@ -1301,7 +1351,7 @@
                         data.leads.forEach(lead => {
                             let color = '#F97316'; 
                             if (lead.etapa === 'Recebido (Fechado)') color = '#22C55E';
-                            else if (lead.etapa === 'Perdido/Sem Possibilidade') color = '#EF4444';
+                            else if (lead.etapa === 'Perdido/Sem Possibilidade' || lead.etapa === 'Sem Resposta / Perdido') color = '#EF4444';
                             
                             const latJitter = coords[0] + (Math.random() - 0.5) * 0.008;
                             const lngJitter = coords[1] + (Math.random() - 0.5) * 0.008;
@@ -1314,7 +1364,7 @@
                                 opacity: 1, 
                                 fillOpacity: 0.9 
                             })
-                             .addTo(this.mapInstance)
+                             .addTo(map)
                              .bindPopup(`
                                 <div class="text-center">
                                     <strong class="text-sm block mb-1">${lead.nome || 'Lead'}</strong>
