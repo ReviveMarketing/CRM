@@ -570,15 +570,21 @@
                                 </h4>
                                 <p class="text-xs text-slate-500 mb-1">{{ lead.campanha || '' }}</p>
                                 <!-- GARANTINDO O CONTATO VISÍVEL -->
-                                <p class="text-xs text-slate-500 flex items-center gap-1 mb-3 font-medium bg-slate-50 p-1 rounded inline-block">
+                                <p class="text-xs text-slate-500 flex items-center gap-1 mb-1 font-medium bg-slate-50 p-1 rounded inline-block">
                                     <i class="fa-solid fa-phone text-[10px] text-slate-400"></i> {{ lead.telefone }}
                                 </p>
+
+                                <!-- DATA DO CONTATO (MANUAL) NO CARD -->
+                                <p v-if="lead.dataContato" class="text-[10px] text-blue-600 font-bold mb-3 flex items-center gap-1">
+                                    <i class="fa-brands fa-whatsapp"></i> Chegou: {{ new Date(lead.dataContato).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) }}
+                                </p>
+                                <p v-else class="text-[10px] text-slate-300 mb-3 italic">Data chegada ñ inf.</p>
                                 
                                 <!-- DATA e HORA adicionadas aqui no layout do footer -->
                                 <div class="flex justify-between items-center border-t border-slate-100 pt-3">
                                     <div class="flex flex-col">
-                                        <span v-if="lead.dataCriacao" class="text-[10px] font-medium text-slate-400 flex items-center gap-1 mb-1" title="Data/Hora Cadastro">
-                                            <i class="fa-regular fa-clock"></i> {{ new Date(lead.dataCriacao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }}
+                                        <span v-if="lead.dataCriacao" class="text-[9px] font-medium text-slate-300 flex items-center gap-1 mb-1" title="Data/Hora Cadastro Sistema">
+                                            <i class="fa-solid fa-database"></i> Cad: {{ new Date(lead.dataCriacao).toLocaleDateString('pt-BR') }}
                                         </span>
                                         <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
                                     </div>
@@ -697,12 +703,25 @@
                             <label class="block text-sm font-bold text-slate-500 mb-2">Data do Relatório</label>
                             <input type="date" v-model="exportData.date" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
                         </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-500 mb-2">Filtrar Consultor (Opcional)</label>
-                            <select v-model="exportData.consultor" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
-                                <option value="">Todos os Consultores</option>
-                                <option v-for="c in listaConsultores" :value="c">{{ c }}</option>
-                            </select>
+                        
+                        <div class="flex flex-col gap-4">
+                            <!-- Tipo de Filtro (Data) -->
+                            <div>
+                                <label class="block text-sm font-bold text-slate-500 mb-2">Filtrar por qual Data?</label>
+                                <select v-model="exportData.dateType" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
+                                    <option value="criacao">Data de Cadastro (Sistema)</option>
+                                    <option value="contato">Data do Contato / Chegada (WhatsApp)</option>
+                                </select>
+                            </div>
+
+                            <!-- Filtro Consultor -->
+                            <div>
+                                <label class="block text-sm font-bold text-slate-500 mb-2">Filtrar Consultor (Opcional)</label>
+                                <select v-model="exportData.consultor" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
+                                    <option value="">Todos os Consultores</option>
+                                    <option v-for="c in listaConsultores" :value="c">{{ c }}</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -714,7 +733,7 @@
                                 <i class="fa-solid fa-file-csv text-green-500 text-2xl"></i>
                                 <h4 class="font-bold text-slate-800">Planilha Completa</h4>
                             </div>
-                            <p class="text-xs text-slate-500 mb-6">Exporta todos os dados filtrados para Excel/CSV (Nome, Número, Obs, Fratura).</p>
+                            <p class="text-xs text-slate-500 mb-6">Exporta todos os dados filtrados para Excel/CSV (Nome, Número, Obs, Fratura, Data Contato).</p>
                             <button @click="generateCSV" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-100 transition transform group-hover:-translate-y-1">
                                 <i class="fa-solid fa-download mr-2"></i> Baixar Planilha
                             </button>
@@ -839,6 +858,15 @@
                     <div class="space-y-6">
                         <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-regular fa-id-card"></i> Dados & Origem</h4>
                         
+                        <!-- NOVO CAMPO DE DATA DO CONTATO -->
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                             <label class="block text-xs font-bold text-blue-800 mb-1.5 uppercase flex items-center gap-2">
+                                <i class="fa-brands fa-whatsapp"></i> Data do Contato / Chegada
+                             </label>
+                             <input v-model="form.dataContato" type="date" class="w-full p-3 bg-white border border-blue-200 rounded-lg text-slate-700 font-bold focus:ring-2 focus:ring-blue-300 outline-none">
+                             <p class="text-[9px] text-blue-500 mt-1">Informe a data real que o lead chamou no WhatsApp.</p>
+                        </div>
+
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Telefone <span class="text-red-500">*</span></label>
                             <input v-model="form.telefone" type="tel" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition font-medium text-slate-700" placeholder="(00) 00000-0000">
@@ -1056,7 +1084,8 @@
                 // Dados de Exportação (NOVO)
                 exportData: {
                     date: new Date().toISOString().split('T')[0],
-                    consultor: ''
+                    consultor: '',
+                    dateType: 'criacao' // criacao ou contato
                 },
 
                 leads: [],
@@ -1073,7 +1102,8 @@
                     etapa: 'Primeiro Contato', 
                     historicoMsg: [], 
                     msgAtiva: false,
-                    dataFechamento: ''
+                    dataFechamento: '',
+                    dataContato: '' // NOVO CAMPO
                 },
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
@@ -1543,7 +1573,8 @@
                     etapa: 'Primeiro Contato', 
                     historicoMsg: [], 
                     msgAtiva: false,
-                    dataFechamento: ''
+                    dataFechamento: '',
+                    dataContato: ''
                 };
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
@@ -1625,9 +1656,15 @@
             getFilteredExportData() {
                 let filtered = this.leads;
                 
-                // Filtro por Data (se selecionada)
+                // Filtro por Data
                 if(this.exportData.date) {
-                    filtered = filtered.filter(l => (l.dataCriacao || '').slice(0,10) === this.exportData.date);
+                    if (this.exportData.dateType === 'contato') {
+                         // Filtra pela Data do Contato (Manual)
+                         filtered = filtered.filter(l => l.dataContato === this.exportData.date);
+                    } else {
+                         // Filtra pela Data de Cadastro (Automático - Padrão)
+                         filtered = filtered.filter(l => (l.dataCriacao || '').slice(0,10) === this.exportData.date);
+                    }
                 }
 
                 // Filtro por Consultor (se selecionado)
@@ -1642,15 +1679,16 @@
                 if(data.length === 0) return this.showToast('Nenhum dado para exportar na data selecionada.', 'fa-circle-exclamation');
 
                 let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM para acentos
-                csvContent += "Nome,Telefone,Fratura,Observacao\n"; // Cabeçalho
+                csvContent += "Nome,Telefone,Data_Contato,Fratura,Observacao\n"; // Cabeçalho
 
                 data.forEach(l => {
                     const nome = (l.nome || l.telefone || 'Sem Nome').replace(/,/g, ' '); // Evitar quebra do CSV
                     const fone = (l.telefone || '').replace(/,/g, ' ');
+                    const dataContato = l.dataContato ? l.dataContato.split('-').reverse().join('/') : 'N/A';
                     const fratura = (l.fratura || 'N/A').replace(/,/g, ' ');
                     const obs = (l.obs || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, ';'); 
                     
-                    csvContent += `${nome},${fone},${fratura},${obs}\n`;
+                    csvContent += `${nome},${fone},${dataContato},${fratura},${obs}\n`;
                 });
 
                 const encodedUri = encodeURI(csvContent);
@@ -1678,13 +1716,15 @@
                     </style>
                     </head><body>
                     <h1>Relatório Diário - Revive CRM</h1>
-                    <p><strong>Data:</strong> ${this.exportData.date.split('-').reverse().join('/')}</p>
+                    <p><strong>Data Relatório:</strong> ${this.exportData.date.split('-').reverse().join('/')}</p>
+                    <p><strong>Critério de Data:</strong> ${this.exportData.dateType === 'contato' ? 'Data de Contato (WhatsApp)' : 'Data de Cadastro (Sistema)'}</p>
                     <p><strong>Total de Registros:</strong> ${data.length}</p>
                     <table>
                         <thead>
                             <tr>
                                 <th>Nome / Identificação</th>
                                 <th>Telefone</th>
+                                <th>Data Contato</th>
                                 <th>Fratura</th>
                                 <th>Observações</th>
                             </tr>
@@ -1693,10 +1733,12 @@
                 `;
 
                 data.forEach(l => {
+                    const dataFormatada = l.dataContato ? l.dataContato.split('-').reverse().join('/') : '-';
                      htmlContent += `
                         <tr>
                             <td>${l.nome || 'Sem Nome'}</td>
                             <td>${l.telefone || '-'}</td>
+                            <td>${dataFormatada}</td>
                             <td>${l.fratura || '-'}</td>
                             <td>${l.obs || ''}</td>
                         </tr>
