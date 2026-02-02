@@ -577,6 +577,7 @@
                                 <!-- DATA DO CONTATO (MANUAL) NO CARD -->
                                 <p v-if="lead.dataContato" class="text-[10px] text-blue-600 font-bold mb-3 flex items-center gap-1">
                                     <i class="fa-brands fa-whatsapp"></i> Chegou: {{ new Date(lead.dataContato).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) }}
+                                    <span v-if="lead.horaContato" class="text-slate-400 ml-1">às {{ lead.horaContato }}</span>
                                 </p>
                                 <p v-else class="text-[10px] text-slate-300 mb-3 italic">Data chegada ñ inf.</p>
                                 
@@ -858,13 +859,16 @@
                     <div class="space-y-6">
                         <h4 class="font-bold text-blue-600 text-sm uppercase tracking-widest border-b border-blue-100 pb-2 mb-2 flex items-center gap-2"><i class="fa-regular fa-id-card"></i> Dados & Origem</h4>
                         
-                        <!-- NOVO CAMPO DE DATA DO CONTATO -->
+                        <!-- NOVO CAMPO DE DATA E HORA DO CONTATO -->
                         <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                              <label class="block text-xs font-bold text-blue-800 mb-1.5 uppercase flex items-center gap-2">
-                                <i class="fa-brands fa-whatsapp"></i> Data do Contato / Chegada
+                                <i class="fa-brands fa-whatsapp"></i> Data e Hora do Contato / Chegada
                              </label>
-                             <input v-model="form.dataContato" type="date" class="w-full p-3 bg-white border border-blue-200 rounded-lg text-slate-700 font-bold focus:ring-2 focus:ring-blue-300 outline-none">
-                             <p class="text-[9px] text-blue-500 mt-1">Informe a data real que o lead chamou no WhatsApp.</p>
+                             <div class="flex gap-2">
+                                 <input v-model="form.dataContato" type="date" class="w-full p-3 bg-white border border-blue-200 rounded-lg text-slate-700 font-bold focus:ring-2 focus:ring-blue-300 outline-none">
+                                 <input v-model="form.horaContato" type="time" class="w-32 p-3 bg-white border border-blue-200 rounded-lg text-slate-700 font-bold focus:ring-2 focus:ring-blue-300 outline-none">
+                             </div>
+                             <p class="text-[9px] text-blue-500 mt-1">Informe a data e hora real que o lead chamou no WhatsApp.</p>
                         </div>
 
                         <div>
@@ -1103,7 +1107,8 @@
                     historicoMsg: [], 
                     msgAtiva: false,
                     dataFechamento: '',
-                    dataContato: '' // NOVO CAMPO
+                    dataContato: '',
+                    horaContato: '' // NOVO CAMPO
                 },
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
@@ -1574,7 +1579,8 @@
                     historicoMsg: [], 
                     msgAtiva: false,
                     dataFechamento: '',
-                    dataContato: ''
+                    dataContato: '',
+                    horaContato: ''
                 };
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
@@ -1679,16 +1685,19 @@
                 if(data.length === 0) return this.showToast('Nenhum dado para exportar na data selecionada.', 'fa-circle-exclamation');
 
                 let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM para acentos
-                csvContent += "Nome,Telefone,Data_Contato,Fratura,Observacao\n"; // Cabeçalho
+                csvContent += "Nome,Telefone,Data_e_Hora_Contato,Fratura,Observacao\n"; // Cabeçalho
 
                 data.forEach(l => {
                     const nome = (l.nome || l.telefone || 'Sem Nome').replace(/,/g, ' '); // Evitar quebra do CSV
                     const fone = (l.telefone || '').replace(/,/g, ' ');
-                    const dataContato = l.dataContato ? l.dataContato.split('-').reverse().join('/') : 'N/A';
+                    const dataPart = l.dataContato ? l.dataContato.split('-').reverse().join('/') : 'N/A';
+                    const horaPart = l.horaContato ? l.horaContato : '';
+                    const dataHoraFull = horaPart ? `${dataPart} ${horaPart}` : dataPart;
+                    
                     const fratura = (l.fratura || 'N/A').replace(/,/g, ' ');
                     const obs = (l.obs || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, ';'); 
                     
-                    csvContent += `${nome},${fone},${dataContato},${fratura},${obs}\n`;
+                    csvContent += `${nome},${fone},${dataHoraFull},${fratura},${obs}\n`;
                 });
 
                 const encodedUri = encodeURI(csvContent);
@@ -1724,7 +1733,7 @@
                             <tr>
                                 <th>Nome / Identificação</th>
                                 <th>Telefone</th>
-                                <th>Data Contato</th>
+                                <th>Data/Hora Contato</th>
                                 <th>Fratura</th>
                                 <th>Observações</th>
                             </tr>
@@ -1733,12 +1742,15 @@
                 `;
 
                 data.forEach(l => {
-                    const dataFormatada = l.dataContato ? l.dataContato.split('-').reverse().join('/') : '-';
+                    const dataPart = l.dataContato ? l.dataContato.split('-').reverse().join('/') : '-';
+                    const horaPart = l.horaContato ? l.horaContato : '';
+                    const dataHoraFull = horaPart ? `${dataPart} às ${horaPart}` : dataPart;
+
                      htmlContent += `
                         <tr>
                             <td>${l.nome || 'Sem Nome'}</td>
                             <td>${l.telefone || '-'}</td>
-                            <td>${dataFormatada}</td>
+                            <td>${dataHoraFull}</td>
                             <td>${l.fratura || '-'}</td>
                             <td>${l.obs || ''}</td>
                         </tr>
