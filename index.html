@@ -1589,6 +1589,11 @@
             },
             editLead(lead) {
                 this.form = { ...lead };
+                // Correção: Garante que horaContato exista para leads antigos
+                if (this.form.horaContato === undefined) {
+                    this.form.horaContato = '';
+                }
+
                 if(this.form.estado) {
                     this.carregarCidades(this.form.estado);
                 }
