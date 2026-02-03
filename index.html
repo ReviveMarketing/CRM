@@ -334,6 +334,31 @@
             <!-- NOVA TELA: TAREFAS DO COORDENADOR -->
             <div v-if="view === 'tarefas'" class="max-w-5xl mx-auto w-full animate-fade-in">
                 
+                <!-- MINI DASHBOARD DE TAREFAS (NOVO) -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="glass-panel p-4 border-l-4 border-orange-500 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Pendentes</p>
+                            <h3 class="text-2xl font-bold text-slate-700">{{ pendingTasks.length }}</h3>
+                        </div>
+                        <i class="fa-solid fa-clock text-orange-200 text-3xl"></i>
+                    </div>
+                    <div class="glass-panel p-4 border-l-4 border-green-500 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Concluídas</p>
+                            <h3 class="text-2xl font-bold text-slate-700">{{ tasks.filter(t => t.completed).length }}</h3>
+                        </div>
+                        <i class="fa-solid fa-check-circle text-green-200 text-3xl"></i>
+                    </div>
+                     <div class="glass-panel p-4 border-l-4 border-indigo-500 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Total Geral</p>
+                            <h3 class="text-2xl font-bold text-slate-700">{{ tasks.length }}</h3>
+                        </div>
+                        <i class="fa-solid fa-list text-indigo-200 text-3xl"></i>
+                    </div>
+                </div>
+
                 <!-- Input Row - Adicionar Demanda -->
                 <div class="glass-panel p-6 mb-8 flex flex-col md:flex-row gap-4 items-end border-l-4 border-indigo-500">
                     <div class="flex-1 w-full">
@@ -397,6 +422,13 @@
                             <button v-if="completedTasks.length > 0" @click="clearCompletedTasks" class="text-[10px] text-red-400 hover:text-red-600 font-bold underline">Limpar Histórico</button>
                         </div>
 
+                        <!-- FILTRO DE DATA (NOVO) -->
+                        <div class="mb-4 bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase"><i class="fa-solid fa-filter"></i> Filtrar Data:</span>
+                            <input type="date" v-model="taskFilterDate" class="text-xs font-bold text-slate-600 bg-transparent outline-none cursor-pointer flex-1">
+                            <button v-if="taskFilterDate" @click="taskFilterDate = ''" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-times"></i></button>
+                        </div>
+
                         <div class="space-y-3 opacity-60 hover:opacity-100 transition duration-500">
                             <div v-for="task in completedTasks" :key="task.id" class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex gap-4 items-center">
                                 <label class="relative flex items-center cursor-pointer">
@@ -407,9 +439,13 @@
                                 </label>
                                 <div class="flex-1">
                                     <p class="font-medium text-slate-500 line-through text-sm">{{ task.text }}</p>
-                                    <p class="text-[9px] text-green-600 mt-1 font-bold">Concluído</p>
+                                    <p class="text-[9px] text-green-600 mt-1 font-bold">Concluído <span v-if="task.date">- Prazo: {{ formatDate(task.date) }}</span></p>
                                 </div>
                                 <button @click="deleteTask(task)" class="text-slate-300 hover:text-red-500 transition p-2"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                            
+                            <div v-if="completedTasks.length === 0 && taskFilterDate" class="text-center py-8 text-slate-400 text-xs italic">
+                                Nenhuma tarefa concluída nesta data.
                             </div>
                         </div>
                     </div>
@@ -1208,6 +1244,7 @@
                 taskAuthInput: '',
                 tasks: [],
                 newTask: { text: '', date: '' },
+                taskFilterDate: '', // Filtro de Data para Concluídas
 
                 // Filtro Pipeline
                 pipelineFilterConsultant: '',
@@ -1386,7 +1423,11 @@
                 return this.tasks.filter(t => !t.completed).sort((a,b) => new Date(a.date || '9999-12-31') - new Date(b.date || '9999-12-31'));
             },
             completedTasks() {
-                return this.tasks.filter(t => t.completed).sort((a,b) => new Date(b.date) - new Date(a.date));
+                let list = this.tasks.filter(t => t.completed);
+                if(this.taskFilterDate) {
+                    list = list.filter(t => t.date === this.taskFilterDate);
+                }
+                return list.sort((a,b) => new Date(b.date) - new Date(a.date));
             }
         },
         methods: {
