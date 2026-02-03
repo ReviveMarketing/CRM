@@ -128,6 +128,15 @@
         .animate-slide-in-right {
             animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
+
+        /* Estilos Checkbox Tarefas */
+        .task-checkbox:checked + div {
+            background-color: #10B981;
+            border-color: #10B981;
+        }
+        .task-checkbox:checked + div i {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -159,6 +168,24 @@
     <div v-if="toast.show" class="fixed top-6 right-6 z-50 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 transition-all duration-500 transform translate-y-0 border-l-4 border-blue-500">
         <i :class="toast.icon" class="text-blue-400 text-xl"></i>
         <span class="font-medium">{{ toast.message }}</span>
+    </div>
+
+    <!-- Modal de Senha do Coordenador -->
+    <div v-if="showTaskAuthModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+        <div class="glass-panel p-8 w-full max-w-sm text-center animate-scale-up shadow-2xl border-t-4 border-indigo-500">
+            <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 text-2xl">
+                <i class="fa-solid fa-user-lock"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-1">Acesso Restrito</h3>
+            <p class="text-slate-500 text-sm mb-6">Área exclusiva do Coordenador.</p>
+            
+            <input v-model="taskAuthInput" @keyup.enter="checkTaskAuth" type="password" placeholder="Digite a Senha..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 mb-4 text-center tracking-widest font-bold">
+            
+            <div class="flex gap-2">
+                <button @click="showTaskAuthModal = false" class="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition">Cancelar</button>
+                <button @click="checkTaskAuth" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition">Entrar</button>
+            </div>
+        </div>
     </div>
 
     <aside v-if="salaAtual" class="w-72 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl">
@@ -202,8 +229,15 @@
                 <i class="fa-brands fa-whatsapp w-5 transition group-hover:scale-110 text-lg"></i> 
                 <span class="font-semibold text-sm">Conexões</span>
             </a>
+            
+            <!-- Menu Tarefas Coordenador (NOVO) -->
+            <a @click="acessarTarefas" :class="{'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100': view === 'tarefas'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group relative">
+                <i class="fa-solid fa-list-check w-5 transition group-hover:scale-110 text-indigo-500"></i> 
+                <span class="font-semibold text-sm">Tarefas (Coord)</span>
+                <i v-if="!isCoordAuthenticated" class="fa-solid fa-lock text-[10px] absolute right-3 text-slate-400"></i>
+            </a>
 
-            <!-- NOVO: Menu Relatórios -->
+            <!-- Menu Relatórios -->
             <a @click="changeView('relatorios')" :class="{'bg-blue-50 text-blue-700 ring-1 ring-blue-100': view === 'relatorios'}" class="flex items-center gap-4 p-3.5 rounded-xl cursor-pointer hover:bg-slate-50 transition group">
                 <i class="fa-solid fa-file-export w-5 transition group-hover:scale-110"></i> 
                 <span class="font-semibold text-sm">Relatórios</span>
@@ -254,8 +288,8 @@
                     <button v-if="filterStartDate || filterEndDate" @click="clearDates" class="px-2 text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
 
-                <!-- Busca com sugestões -->
-                <div class="flex items-center shadow-sm rounded-full">
+                <!-- Busca com sugestões (Esconde em Tarefas) -->
+                <div v-if="view !== 'tarefas'" class="flex items-center shadow-sm rounded-full">
                     <div class="relative group">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition"></i>
                         <input 
@@ -287,13 +321,100 @@
                         <i class="fa-solid fa-filter"></i> Carregar
                     </button>
                 </div>
-                <button @click="openModal()" class="btn-future text-white px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300">
+                
+                <!-- Botão Novo Lead (Esconde em Tarefas) -->
+                <button v-if="view !== 'tarefas'" @click="openModal()" class="btn-future text-white px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300">
                     <i class="fa-solid fa-plus"></i> Novo Lead
                 </button>
             </div>
         </header>
 
         <div class="flex-1 overflow-auto p-8 relative flex flex-col scroll-smooth">
+
+            <!-- NOVA TELA: TAREFAS DO COORDENADOR -->
+            <div v-if="view === 'tarefas'" class="max-w-5xl mx-auto w-full animate-fade-in">
+                
+                <!-- Input Row - Adicionar Demanda -->
+                <div class="glass-panel p-6 mb-8 flex flex-col md:flex-row gap-4 items-end border-l-4 border-indigo-500">
+                    <div class="flex-1 w-full">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">O que precisa ser feito?</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-list-check absolute left-4 top-4 text-indigo-300"></i>
+                            <input v-model="newTask.text" @keyup.enter="addTask" type="text" placeholder="Ex: Reunir com equipe comercial..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-300 font-medium text-slate-700">
+                        </div>
+                    </div>
+                    <div class="w-full md:w-48">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Prazo / Data</label>
+                        <input v-model="newTask.date" type="date" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-300 font-medium text-slate-700">
+                    </div>
+                    <button @click="addTask" :disabled="!newTask.text" class="w-full md:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-plus mr-1"></i> Adicionar
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Coluna Pendentes -->
+                    <div>
+                        <div class="flex justify-between items-center mb-4 px-2">
+                            <h3 class="font-bold text-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-orange-500"></span> Pendentes
+                            </h3>
+                            <span class="bg-white px-2 py-0.5 rounded text-xs font-bold text-slate-500 border border-slate-200 shadow-sm">{{ pendingTasks.length }}</span>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div v-if="pendingTasks.length === 0" class="text-center py-10 bg-slate-100/50 rounded-2xl border-2 border-dashed border-slate-200">
+                                <p class="text-slate-400 text-sm">Tudo em dia por aqui! 🎉</p>
+                            </div>
+
+                            <div v-for="task in pendingTasks" :key="task.id" class="glass-panel p-4 flex gap-4 items-start group hover:border-indigo-300 transition-all duration-300">
+                                <label class="relative flex items-center cursor-pointer mt-1">
+                                    <input type="checkbox" @change="toggleTask(task)" class="sr-only task-checkbox">
+                                    <div class="w-6 h-6 border-2 border-slate-300 rounded-lg flex items-center justify-center transition-colors bg-white">
+                                        <i class="fa-solid fa-check text-white text-xs hidden"></i>
+                                    </div>
+                                </label>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-slate-800 text-sm leading-relaxed">{{ task.text }}</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span v-if="task.date" class="text-[10px] font-bold px-2 py-0.5 rounded border flex items-center gap-1"
+                                              :class="getTaskDateClass(task.date)">
+                                            <i class="fa-regular fa-calendar"></i> {{ formatDate(task.date) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button @click="deleteTask(task)" class="text-slate-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100 p-2"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna Concluídas -->
+                    <div>
+                        <div class="flex justify-between items-center mb-4 px-2">
+                            <h3 class="font-bold text-slate-400 flex items-center gap-2">
+                                <i class="fa-solid fa-check-double text-green-500"></i> Concluídas
+                            </h3>
+                            <button v-if="completedTasks.length > 0" @click="clearCompletedTasks" class="text-[10px] text-red-400 hover:text-red-600 font-bold underline">Limpar Histórico</button>
+                        </div>
+
+                        <div class="space-y-3 opacity-60 hover:opacity-100 transition duration-500">
+                            <div v-for="task in completedTasks" :key="task.id" class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex gap-4 items-center">
+                                <label class="relative flex items-center cursor-pointer">
+                                    <input type="checkbox" checked @change="toggleTask(task)" class="sr-only task-checkbox">
+                                    <div class="w-6 h-6 bg-green-500 border-2 border-green-500 rounded-lg flex items-center justify-center transition-colors">
+                                        <i class="fa-solid fa-check text-white text-xs"></i>
+                                    </div>
+                                </label>
+                                <div class="flex-1">
+                                    <p class="font-medium text-slate-500 line-through text-sm">{{ task.text }}</p>
+                                    <p class="text-[9px] text-green-600 mt-1 font-bold">Concluído</p>
+                                </div>
+                                <button @click="deleteTask(task)" class="text-slate-300 hover:text-red-500 transition p-2"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- DASHBOARD -->
             <div v-if="view === 'dashboard'" class="space-y-8 animate-fade-in">
@@ -1081,15 +1202,22 @@
                 newSessionName: '',
                 activeSessionIndex: null,
                 
+                // TAREFAS COORDENADOR (NOVO)
+                isCoordAuthenticated: false,
+                showTaskAuthModal: false,
+                taskAuthInput: '',
+                tasks: [],
+                newTask: { text: '', date: '' },
+
                 // Filtro Pipeline
                 pipelineFilterConsultant: '',
-                pipelineFilterEtapa: '', // NOVO
+                pipelineFilterEtapa: '', 
 
-                // Dados de Exportação (NOVO)
+                // Dados de Exportação
                 exportData: {
                     date: new Date().toISOString().split('T')[0],
                     consultor: '',
-                    dateType: 'criacao' // criacao ou contato
+                    dateType: 'criacao' 
                 },
 
                 leads: [],
@@ -1108,7 +1236,7 @@
                     msgAtiva: false,
                     dataFechamento: '',
                     dataContato: '',
-                    horaContato: '' // NOVO CAMPO
+                    horaContato: '' 
                 },
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
@@ -1133,6 +1261,9 @@
             // Carregar Sessoes Salvas
             const savedSessions = localStorage.getItem('revive_whatsapp_sessions');
             if(savedSessions) this.whatsappSessions = JSON.parse(savedSessions);
+
+            // Carregar Tarefas
+            this.loadTasks();
         },
         computed: {
             pageTitle() {
@@ -1142,7 +1273,8 @@
                     mapa: 'Inteligência Geográfica', 
                     config: 'Configurações',
                     conexoes: 'Central de Conexões',
-                    relatorios: 'Relatórios & Exportação'
+                    relatorios: 'Relatórios & Exportação',
+                    tarefas: 'Gestão de Demandas' // Novo Título
                 };
                 return titles[this.view] || 'Revive CRM';
             },
@@ -1248,6 +1380,13 @@
                     }
                 });
                 return Object.values(map).sort((a, b) => b.total - a.total);
+            },
+            // Computed Tarefas
+            pendingTasks() {
+                return this.tasks.filter(t => !t.completed).sort((a,b) => new Date(a.date || '9999-12-31') - new Date(b.date || '9999-12-31'));
+            },
+            completedTasks() {
+                return this.tasks.filter(t => t.completed).sort((a,b) => new Date(b.date) - new Date(a.date));
             }
         },
         methods: {
@@ -1256,6 +1395,7 @@
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
                 this.updateLeadsByRoom();
+                this.loadTasks(); // Carrega tarefas ao mudar de sala
             },
             sairSala() {
                 this.salaAtual = '';
@@ -1661,6 +1801,81 @@
             },
             openExternalWhatsapp() {
                 window.open('https://web.whatsapp.com/', '_blank', 'width=1000,height=700');
+            },
+
+            // --- TAREFAS COORDENADOR ---
+            acessarTarefas() {
+                if (this.isCoordAuthenticated) {
+                    this.view = 'tarefas';
+                } else {
+                    this.taskAuthInput = '';
+                    this.showTaskAuthModal = true;
+                }
+            },
+            checkTaskAuth() {
+                if (this.taskAuthInput === 'MATHEUS') {
+                    this.isCoordAuthenticated = true;
+                    this.showTaskAuthModal = false;
+                    this.view = 'tarefas';
+                    this.showToast('Acesso Liberado! 🔐');
+                } else {
+                    this.showToast('Senha Incorreta!', 'fa-circle-xmark');
+                    this.taskAuthInput = '';
+                }
+            },
+            addTask() {
+                if(!this.newTask.text) return;
+                
+                const task = {
+                    id: Date.now(),
+                    text: this.newTask.text,
+                    date: this.newTask.date,
+                    completed: false
+                };
+                
+                this.tasks.push(task);
+                this.saveTasks();
+                this.newTask.text = '';
+                this.newTask.date = '';
+                this.showToast('Demanda Adicionada!', 'fa-list-check');
+            },
+            toggleTask(task) {
+                task.completed = !task.completed;
+                this.saveTasks();
+            },
+            deleteTask(task) {
+                this.tasks = this.tasks.filter(t => t.id !== task.id);
+                this.saveTasks();
+            },
+            saveTasks() {
+                // Salva localmente, associado à sala atual
+                if(this.salaAtual) {
+                    localStorage.setItem(`revive_tasks_${this.salaAtual}`, JSON.stringify(this.tasks));
+                }
+            },
+            loadTasks() {
+                if(this.salaAtual) {
+                    const saved = localStorage.getItem(`revive_tasks_${this.salaAtual}`);
+                    if(saved) this.tasks = JSON.parse(saved);
+                    else this.tasks = [];
+                }
+            },
+            clearCompletedTasks() {
+                this.tasks = this.tasks.filter(t => !t.completed);
+                this.saveTasks();
+            },
+            formatDate(dateStr) {
+                if(!dateStr) return '';
+                const date = new Date(dateStr);
+                date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+                return date.toLocaleDateString('pt-BR');
+            },
+            getTaskDateClass(dateStr) {
+                if(!dateStr) return 'bg-slate-100 text-slate-500 border-slate-200';
+                const today = new Date().toISOString().split('T')[0];
+                if(dateStr < today) return 'bg-red-50 text-red-600 border-red-200'; // Atrasado
+                if(dateStr === today) return 'bg-green-50 text-green-600 border-green-200'; // Hoje
+                return 'bg-blue-50 text-blue-600 border-blue-200'; // Futuro
             },
 
             // --- FUNÇÕES DE EXPORTAÇÃO ---
