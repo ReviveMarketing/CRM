@@ -128,6 +128,12 @@
         .animate-slide-in-right {
             animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
+        
+        /* Animação Alerta Topo */
+        @keyframes slide-down {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
 
         /* Estilos Checkbox Tarefas */
         .task-checkbox:checked + div {
@@ -149,6 +155,31 @@
 
 <div id="app" class="flex h-screen overflow-hidden text-slate-800">
     
+    <!-- BARRA DE ALERTAS/LEMBRETES GLOBAL (NOVO) -->
+    <div v-if="activeReminders.length > 0" class="fixed top-0 left-0 w-full z-[10000] flex flex-col items-center">
+        <div v-for="reminder in activeReminders" :key="reminder.id" 
+             class="w-full bg-red-500 text-white shadow-xl animate-slide-down flex items-center justify-center p-3 gap-4 border-b-4 border-red-700 relative overflow-hidden">
+            
+            <!-- Efeito de Fundo -->
+            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10"></div>
+            
+            <div class="flex items-center gap-3 relative z-10">
+                <div class="bg-white text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg animate-pulse">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div class="text-sm md:text-base">
+                    <span class="font-bold uppercase tracking-wide opacity-80 mr-2">Atenção!</span>
+                    <span class="font-bold">"{{ reminder.text }}"</span> vence em 
+                    <span class="font-black bg-white text-red-600 px-2 py-0.5 rounded ml-1">{{ reminder.minutesLeft }} min</span>
+                </div>
+            </div>
+
+            <button @click="dismissReminder(reminder.id)" class="bg-white/20 hover:bg-white text-white hover:text-red-600 px-4 py-1.5 rounded-lg font-bold text-xs uppercase tracking-widest transition border border-white/30 relative z-10">
+                <i class="fa-solid fa-check mr-1"></i> OK, Ciente
+            </button>
+        </div>
+    </div>
+
     <!-- Tela de Login / Sala -->
     <div v-if="!salaAtual" class="fullscreen-overlay">
         <div class="glass-panel p-12 text-center max-w-md w-full shadow-2xl relative">
@@ -1294,6 +1325,11 @@
                 tasks: [],
                 newTask: { text: '', date: '', time: '', desc: '' },
                 taskFilterDate: '', // Filtro de Data para Concluídas
+                
+                // ALERTAS / LEMBRETES (NOVO)
+                activeReminders: [],
+                dismissedReminders: new Set(),
+                reminderInterval: null,
 
                 // Filtro Pipeline
                 pipelineFilterConsultant: '',
@@ -1350,6 +1386,9 @@
 
             // Carregar Tarefas
             this.loadTasks();
+
+            // Iniciar Verificação de Lembretes (a cada 30 segundos)
+            this.reminderInterval = setInterval(this.checkReminders, 30000);
         },
         computed: {
             pageTitle() {
@@ -2007,6 +2046,46 @@
                 if(dateStr < today) return 'bg-red-100 text-red-800 border-red-300'; // Atrasado (Vermelho Escuro/Vinho)
                 if(dateStr === today) return 'bg-red-50 text-red-600 border-red-200 animate-pulse'; // Hoje (Vermelho Urgente)
                 return 'bg-orange-50 text-orange-600 border-orange-200'; // Futuro (Laranja)
+            },
+
+            // --- LÓGICA DE LEMBRETES (NOVO) ---
+            checkReminders() {
+                const now = new Date();
+                const active = [];
+
+                this.pendingTasks.forEach(task => {
+                    // Só verifica se tiver data e hora
+                    if (task.date && task.time) {
+                         const taskDateTime = new Date(`${task.date}T${task.time}`);
+                         // Ajusta fuso horário local
+                         // Se a data já passou, consideramos atrasado e não alertamos como "pré-evento"
+                         // Se a data for no futuro, verificamos a diferença
+                         
+                         const diffMs = taskDateTime - now;
+                         const diffMins = Math.floor(diffMs / 60000);
+
+                         // Regra: Se faltar entre 0 e 30 minutos E ainda não foi dispensado
+                         if (diffMins >= 0 && diffMins <= 30) {
+                             if (!this.dismissedReminders.has(task.id)) {
+                                 active.push({
+                                     id: task.id,
+                                     text: task.text,
+                                     minutesLeft: diffMins
+                                 });
+                             }
+                         }
+                    }
+                });
+                
+                this.activeReminders = active;
+                if(active.length > 0) {
+                    // Opcional: Tocar som se desejar
+                }
+            },
+            dismissReminder(id) {
+                this.dismissedReminders.add(id);
+                this.activeReminders = this.activeReminders.filter(r => r.id !== id);
+                this.showToast('Lembrete Confirmado!', 'fa-check');
             },
 
             // --- FUNÇÕES DE EXPORTAÇÃO ---
