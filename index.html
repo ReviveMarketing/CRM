@@ -701,8 +701,8 @@
 
             <!-- PIPELINE -->
             <div v-if="view === 'pipeline'" class="flex flex-col h-full overflow-hidden">
-                <!-- Filtros Avançados (Vendedor e Etapa) -->
-                <div class="px-2 py-4 flex items-center gap-4 bg-slate-50/50 backdrop-blur rounded-xl mb-2">
+                <!-- Filtros Avançados (Vendedor, Etapa, Estado e Cidade) -->
+                <div class="px-2 py-4 flex flex-wrap items-center gap-4 bg-slate-50/50 backdrop-blur rounded-xl mb-2">
                     <div class="flex items-center gap-2">
                         <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-user-tie text-blue-500"></i> Vendedor:</label>
                         <div class="relative group">
@@ -720,6 +720,30 @@
                             <select v-model="pipelineFilterEtapa" class="appearance-none bg-white border border-slate-300 hover:border-indigo-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 cursor-pointer transition">
                                 <option value="">Todas as Etapas</option>
                                 <option v-for="e in etapas" :value="e">{{ e }}</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+
+                    <!-- Filtro Estado -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-map text-orange-500"></i> UF:</label>
+                        <div class="relative group">
+                            <select v-model="pipelineFilterEstado" @change="carregarCidadesFiltro(pipelineFilterEstado)" class="appearance-none bg-white border border-slate-300 hover:border-orange-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-100 cursor-pointer transition">
+                                <option value="">Todos</option>
+                                <option v-for="uf in estados" :value="uf.sigla">{{ uf.sigla }}</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+
+                    <!-- Filtro Cidade (Aparece apenas se UF selecionado) -->
+                    <div class="flex items-center gap-2" v-if="pipelineFilterEstado">
+                        <label class="text-sm font-bold text-slate-500"><i class="fa-solid fa-city text-orange-500"></i> Cidade:</label>
+                        <div class="relative group">
+                            <select v-model="pipelineFilterCidade" class="appearance-none bg-white border border-slate-300 hover:border-orange-400 rounded-lg py-2 pl-3 pr-8 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-100 cursor-pointer transition w-40">
+                                <option value="">Todas</option>
+                                <option v-for="cidade in cidadesFiltro" :value="cidade">{{ cidade }}</option>
                             </select>
                             <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
@@ -771,7 +795,10 @@
                                 <h4 class="font-bold text-slate-800 text-base mb-1 leading-snug group-hover:text-blue-600 transition-colors" :class="{'text-red-500 italic': !lead.nome}">
                                     {{ lead.nome || 'Sem Nome' }}
                                 </h4>
-                                <p class="text-xs text-slate-500 mb-1">{{ lead.campanha || '' }}</p>
+                                <div class="flex justify-between items-center mb-1">
+                                    <p class="text-xs text-slate-500">{{ lead.campanha || '' }}</p>
+                                    <p v-if="lead.estado" class="text-[9px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded uppercase">{{ lead.estado }} <span v-if="lead.cidade">- {{ lead.cidade }}</span></p>
+                                </div>
                                 <!-- GARANTINDO O CONTATO VISÍVEL -->
                                 <p class="text-xs text-slate-500 flex items-center gap-1 mb-1 font-medium bg-slate-50 p-1 rounded inline-block">
                                     <i class="fa-solid fa-phone text-[10px] text-slate-400"></i> {{ lead.telefone }}
@@ -1304,6 +1331,8 @@
 
                 pipelineFilterConsultant: '',
                 pipelineFilterEtapa: '', 
+                pipelineFilterEstado: '', // NOVO
+                pipelineFilterCidade: '', // NOVO
 
                 exportData: {
                     date: new Date().toISOString().split('T')[0],
@@ -1336,6 +1365,7 @@
 
                 estados: [],
                 cidadesPorEstado: [],
+                cidadesFiltro: [], // NOVO: Para o filtro do pipeline
 
                 toast: { show: false, message: '', icon: '' },
                 cityCache: {...STATIC_COORDS}
@@ -1629,6 +1659,16 @@
                     this.cidadesPorEstado = data.map(c => c.nome);
                 } catch(e) { console.error("Erro IBGE Cidade", e); }
             },
+            // NOVO MÉTODO: Carrega cidades para o filtro do pipeline
+            async carregarCidadesFiltro(uf) {
+                this.pipelineFilterCidade = ''; // Reseta a cidade ao mudar o estado
+                if(!uf) { this.cidadesFiltro = []; return; }
+                try {
+                    const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+                    const data = await res.json();
+                    this.cidadesFiltro = data.map(c => c.nome);
+                } catch(e) { console.error("Erro IBGE Cidade Filtro", e); }
+            },
 
             async retryConnection() {
                 const config = USER_FIREBASE_CONFIG;
@@ -1675,7 +1715,9 @@
                 return this.filteredLeads.filter(l => {
                     const matchEtapa = l.etapa === etapa;
                     const matchConsultant = this.pipelineFilterConsultant ? l.consultor === this.pipelineFilterConsultant : true;
-                    return matchEtapa && matchConsultant;
+                    const matchEstado = this.pipelineFilterEstado ? l.estado === this.pipelineFilterEstado : true;
+                    const matchCidade = this.pipelineFilterCidade ? l.cidade === this.pipelineFilterCidade : true;
+                    return matchEtapa && matchConsultant && matchEstado && matchCidade;
                 });
             },
             isIncomplete(lead) { return lead.telefone && !lead.nome; },
