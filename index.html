@@ -137,12 +137,6 @@
         .task-checkbox:checked + div i {
             display: block;
         }
-
-        /* Estilo para item sendo arrastado */
-        .dragging-task {
-            opacity: 0.5;
-            border: 2px dashed #6366F1;
-        }
     </style>
 </head>
 <body>
@@ -411,7 +405,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-orange-500"></span> Pendentes (Drag & Drop)
+                                <span class="w-2 h-2 rounded-full bg-orange-500"></span> Pendentes
                             </h3>
                             <span class="bg-white px-2 py-0.5 rounded text-xs font-bold text-slate-500 border border-slate-200 shadow-sm">{{ pendingTasks.length }}</span>
                         </div>
@@ -421,21 +415,7 @@
                                 <p class="text-slate-400 text-sm">Tudo em dia por aqui! 🎉</p>
                             </div>
 
-                            <div 
-                                v-for="(task, index) in pendingTasks" 
-                                :key="task.id" 
-                                draggable="true"
-                                @dragstart="startDragTask($event, task)"
-                                @drop="onDropTask($event, task)"
-                                @dragover.prevent
-                                @dragenter.prevent
-                                class="glass-panel p-4 flex gap-4 items-start group hover:border-indigo-300 transition-all duration-300 cursor-move"
-                            >
-                                <!-- Ícone de Grip (Arrastar) -->
-                                <div class="mt-1 text-slate-300 group-hover:text-indigo-400 cursor-grab active:cursor-grabbing" title="Arrastar para priorizar">
-                                    <i class="fa-solid fa-grip-vertical"></i>
-                                </div>
-
+                            <div v-for="task in pendingTasks" :key="task.id" class="glass-panel p-4 flex gap-4 items-start group hover:border-indigo-300 transition-all duration-300">
                                 <label class="relative flex items-center cursor-pointer mt-1">
                                     <input type="checkbox" @change="toggleTask(task)" class="sr-only task-checkbox">
                                     <div class="w-6 h-6 border-2 border-slate-300 rounded-lg flex items-center justify-center transition-colors bg-white">
@@ -1469,8 +1449,7 @@
             },
             // Computed Tarefas
             pendingTasks() {
-                // MODIFICADO: Removemos o sort automático para respeitar a ordem manual (Drag & Drop)
-                return this.tasks.filter(t => !t.completed);
+                return this.tasks.filter(t => !t.completed).sort((a,b) => new Date(a.date || '9999-12-31') - new Date(b.date || '9999-12-31'));
             },
             overdueTasks() {
                 const today = new Date().toISOString().split('T')[0];
@@ -1801,37 +1780,6 @@
                     const updatePayload = { etapa: novaEtapa };
                     if(lead.dataFechamento) updatePayload.dataFechamento = lead.dataFechamento;
                     await updateDoc(leadRef, updatePayload);
-                }
-            },
-
-            // --- DRAG AND DROP TAREFAS (NOVO) ---
-            startDragTask(evt, task) {
-                evt.dataTransfer.dropEffect = 'move';
-                evt.dataTransfer.effectAllowed = 'move';
-                evt.dataTransfer.setData('taskId', task.id);
-            },
-            onDropTask(evt, targetTask) {
-                const draggedTaskId = evt.dataTransfer.getData('taskId');
-                if (!draggedTaskId) return;
-
-                const draggedTask = this.tasks.find(t => t.id == draggedTaskId);
-                if (!draggedTask) return;
-                
-                // Evita drop no próprio item
-                if (draggedTask.id === targetTask.id) return;
-
-                // Reorganiza no array principal
-                const oldIndex = this.tasks.findIndex(t => t.id == draggedTaskId);
-                const newIndex = this.tasks.findIndex(t => t.id == targetTask.id);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    // Remove da posição antiga
-                    this.tasks.splice(oldIndex, 1);
-                    // Insere na nova posição
-                    this.tasks.splice(newIndex, 0, draggedTask);
-                    
-                    this.saveTasks();
-                    this.showToast('Prioridade atualizada!', 'fa-arrow-down-up-across-line');
                 }
             },
 
