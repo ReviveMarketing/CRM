@@ -128,6 +128,12 @@
         .animate-slide-in-right {
             animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
+        
+        /* Animação Alerta Topo */
+        @keyframes slide-down {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
 
         /* Estilos Checkbox Tarefas */
         .task-checkbox:checked + div {
@@ -137,12 +143,57 @@
         .task-checkbox:checked + div i {
             display: block;
         }
+
+        /* Estilo para item sendo arrastado */
+        .dragging-task {
+            opacity: 0.5;
+            border: 2px dashed #6366F1;
+        }
+
+        /* Estilo Coluna Urgente */
+        .col-urgente {
+            border: 2px solid #FCA5A5 !important;
+            background: #FEF2F2 !important;
+        }
+        .col-urgente h3 {
+            color: #DC2626 !important;
+            animation: pulse-text 2s infinite;
+        }
+        @keyframes pulse-text {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
 
 <div id="app" class="flex h-screen overflow-hidden text-slate-800">
     
+    <!-- BARRA DE ALERTAS/LEMBRETES GLOBAL (NOVO) -->
+    <div v-if="activeReminders.length > 0" class="fixed top-0 left-0 w-full z-[10000] flex flex-col items-center pointer-events-none">
+        <div v-for="reminder in activeReminders" :key="reminder.id" 
+             class="w-full pointer-events-auto bg-red-600 text-white shadow-xl animate-slide-down flex items-center justify-center p-3 gap-4 border-b-4 border-red-800 relative overflow-hidden">
+            
+            <!-- Efeito de Fundo -->
+            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10"></div>
+            
+            <div class="flex items-center gap-3 relative z-10">
+                <div class="bg-white text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg animate-pulse">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <div class="text-sm md:text-base text-center leading-tight">
+                    <span class="font-bold uppercase tracking-wide opacity-90 block text-[10px]">Alerta do Sistema</span>
+                    <span class="font-extrabold text-lg">{{ reminder.text }}</span>
+                    <span v-if="reminder.subtext" class="block text-xs opacity-80 mt-0.5">{{ reminder.subtext }}</span>
+                </div>
+            </div>
+
+            <button @click="dismissReminder(reminder.id)" class="ml-4 bg-white/20 hover:bg-white text-white hover:text-red-600 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition border border-white/30 relative z-10">
+                <i class="fa-solid fa-check mr-1"></i> OK
+            </button>
+        </div>
+    </div>
+
     <!-- Tela de Login / Sala -->
     <div v-if="!salaAtual" class="fullscreen-overlay">
         <div class="glass-panel p-12 text-center max-w-md w-full shadow-2xl relative">
@@ -275,8 +326,14 @@
             </div>
             
             <div class="flex items-center gap-6">
-                <!-- Filtros Data -->
+                <!-- Filtros Data Avançado (Cadastro ou Contato) -->
                 <div v-if="view === 'dashboard'" class="hidden md:flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm">
+                    <!-- Seletor Tipo Data -->
+                    <select v-model="filterDateType" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1.5 rounded border-0 outline-none uppercase cursor-pointer mr-1">
+                        <option value="criacao">Data Cadastro (Geral)</option>
+                        <option value="contato">Data do Contato (Whats)</option>
+                    </select>
+
                     <div class="flex items-center px-3 gap-2 border-r border-slate-100">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">Início</span>
                         <input type="date" v-model="filterStartDate" class="text-xs font-bold text-slate-600 bg-transparent outline-none cursor-pointer">
@@ -330,6 +387,128 @@
         </header>
 
         <div class="flex-1 overflow-auto p-8 relative flex flex-col scroll-smooth">
+
+            <!-- DASHBOARD COMPLETO (RESTAURADO) -->
+            <div v-if="view === 'dashboard'" class="grid grid-cols-1 md:grid-cols-12 gap-6 animate-fade-in">
+                <!-- KPI Cards Row -->
+                <div class="col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Card 1: Total Leads -->
+                    <div class="glass-panel p-6 flex items-center justify-between border-b-4 border-blue-500">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Leads Totais</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800">{{ filteredDashboardLeads.length }}</h3>
+                            <p class="text-[10px] text-slate-400 mt-1">
+                                <span class="text-green-500 font-bold"><i class="fa-solid fa-arrow-up"></i> Novos</span> no período
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                    <!-- Card 2: Estimado -->
+                    <div class="glass-panel p-6 flex items-center justify-between border-b-4 border-indigo-500">
+                         <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Pipeline (R$)</p>
+                            <h3 class="text-2xl font-extrabold text-slate-800">{{ formatMoeda(totalEstimado) }}</h3>
+                            <p class="text-[10px] text-slate-400 mt-1">Em negociação</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-sack-dollar"></i>
+                        </div>
+                    </div>
+                    <!-- Card 3: Realizado -->
+                    <div class="glass-panel p-6 flex items-center justify-between border-b-4 border-green-500">
+                         <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Fechado (R$)</p>
+                            <h3 class="text-2xl font-extrabold text-green-600">{{ formatMoeda(totalRealizado) }}</h3>
+                            <p class="text-[10px] text-slate-400 mt-1">
+                                <span class="text-green-600 font-bold">{{ taxaFechamento }}%</span> de conversão
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-check-circle"></i>
+                        </div>
+                    </div>
+                    <!-- Card 4: Ciclo -->
+                    <div class="glass-panel p-6 flex items-center justify-between border-b-4 border-orange-500">
+                         <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Ciclo Médio</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800">{{ cicloMedioVendas }} <span class="text-sm font-medium text-slate-400">dias</span></h3>
+                             <p class="text-[10px] text-slate-400 mt-1">Tempo até fechar</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-stopwatch"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Charts & Map -->
+                <div class="col-span-12 md:col-span-8 grid grid-cols-1 gap-6">
+                    <!-- Funnel Chart -->
+                    <div class="glass-panel p-6 min-h-[400px] flex flex-col">
+                        <h4 class="font-bold text-slate-700 mb-6 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-simple text-blue-500"></i> Funil de Vendas (Etapas)
+                        </h4>
+                        <div class="flex-1 relative">
+                            <canvas id="chartEtapas"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Map Small -->
+                    <div class="glass-panel p-0 min-h-[350px] relative overflow-hidden flex flex-col">
+                        <div class="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-sm">
+                             <h4 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-map-location-dot text-indigo-500"></i> Mapa de Calor
+                            </h4>
+                        </div>
+                        <div id="dashboardMapContainer" class="w-full h-full min-h-[350px]"></div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Right Sidebar (Origin & Ranking) -->
+                <div class="col-span-12 md:col-span-4 flex flex-col gap-6">
+                    <!-- Origin Chart -->
+                    <div class="glass-panel p-6 flex flex-col">
+                         <h4 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-bullseye text-red-500"></i> Origem dos Leads
+                        </h4>
+                        <div class="h-64 relative">
+                            <canvas id="chartOrigem"></canvas>
+                        </div>
+                         <div class="mt-4 space-y-2">
+                            <div v-for="stat in statsPorOrigem" :key="stat.nome" class="flex justify-between items-center text-xs border-b border-slate-50 pb-1 last:border-0">
+                                <span class="font-bold text-slate-600">{{ stat.nome }}</span>
+                                <span class="text-slate-400">{{ stat.total }} leads (<span class="text-green-600">{{ stat.taxa }}%</span>)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ranking Consultants -->
+                    <div class="glass-panel p-6 flex-1">
+                         <h4 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-trophy text-yellow-500"></i> Top Vendedores
+                        </h4>
+                        <div class="space-y-4">
+                            <div v-for="(consultor, index) in rankingConsultores" :key="index" class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-md"
+                                     :class="index === 0 ? 'bg-yellow-400' : (index === 1 ? 'bg-slate-400' : (index === 2 ? 'bg-orange-400' : 'bg-slate-200 text-slate-500'))">
+                                    {{ index + 1 }}º
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-bold text-slate-700 text-sm">{{ consultor.nome }}</p>
+                                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1">
+                                        <div class="bg-blue-500 h-1.5 rounded-full" :style="{width: consultor.conversao + '%'}"></div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                     <p class="font-bold text-slate-800 text-xs">{{ consultor.fechados }} <span class="text-[9px] text-slate-400 uppercase">Vendas</span></p>
+                                     <p class="text-[9px] text-green-500 font-bold">{{ consultor.conversao }}% conv.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- NOVA TELA: TAREFAS DO COORDENADOR -->
             <div v-if="view === 'tarefas'" class="max-w-5xl mx-auto w-full animate-fade-in">
@@ -405,7 +584,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-orange-500"></span> Pendentes
+                                <span class="w-2 h-2 rounded-full bg-orange-500"></span> Pendentes (Drag & Drop)
                             </h3>
                             <span class="bg-white px-2 py-0.5 rounded text-xs font-bold text-slate-500 border border-slate-200 shadow-sm">{{ pendingTasks.length }}</span>
                         </div>
@@ -415,7 +594,21 @@
                                 <p class="text-slate-400 text-sm">Tudo em dia por aqui! 🎉</p>
                             </div>
 
-                            <div v-for="task in pendingTasks" :key="task.id" class="glass-panel p-4 flex gap-4 items-start group hover:border-indigo-300 transition-all duration-300">
+                            <div 
+                                v-for="(task, index) in pendingTasks" 
+                                :key="task.id" 
+                                draggable="true"
+                                @dragstart="startDragTask($event, task)"
+                                @drop="onDropTask($event, task)"
+                                @dragover.prevent
+                                @dragenter.prevent
+                                class="glass-panel p-4 flex gap-4 items-start group hover:border-indigo-300 transition-all duration-300 cursor-move"
+                            >
+                                <!-- Ícone de Grip (Arrastar) -->
+                                <div class="mt-1 text-slate-300 group-hover:text-indigo-400 cursor-grab active:cursor-grabbing" title="Arrastar para priorizar">
+                                    <i class="fa-solid fa-grip-vertical"></i>
+                                </div>
+
                                 <label class="relative flex items-center cursor-pointer mt-1">
                                     <input type="checkbox" @change="toggleTask(task)" class="sr-only task-checkbox">
                                     <div class="w-6 h-6 border-2 border-slate-300 rounded-lg flex items-center justify-center transition-colors bg-white">
@@ -481,210 +674,6 @@
                 </div>
             </div>
 
-            <!-- DASHBOARD -->
-            <div v-if="view === 'dashboard'" class="space-y-8 animate-fade-in">
-                <!-- KPI Cards - Expandido para 5 colunas -->
-                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                    <div class="glass-panel p-6 border-l-4 border-blue-500 relative overflow-hidden group">
-                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Leads</p>
-                        <h3 class="text-4xl font-extrabold text-slate-800">{{ filteredDashboardLeads.length }}</h3>
-                    </div>
-                    <div class="glass-panel p-6 border-l-4 border-yellow-500 relative overflow-hidden group">
-                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Pipeline (Estimado)</p>
-                        <h3 class="text-3xl font-extrabold text-slate-800">{{ formatMoeda(totalEstimado) }}</h3>
-                    </div>
-                    <div class="glass-panel p-6 border-l-4 border-green-500 relative overflow-hidden group">
-                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Caixa (Realizado)</p>
-                        <h3 class="text-3xl font-extrabold text-green-600">{{ formatMoeda(totalRealizado) }}</h3>
-                    </div>
-                    <div class="glass-panel p-6 border-l-4 border-purple-500 relative overflow-hidden group">
-                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Ciclo Médio Vendas</p>
-                        <h3 class="text-4xl font-extrabold text-slate-800">{{ cicloMedioVendas }} <span class="text-sm font-medium text-slate-400">dias</span></h3>
-                    </div>
-                    <div class="glass-panel p-6 border-l-4 border-indigo-500 relative overflow-hidden group">
-                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Conversão Total</p>
-                        <h3 class="text-4xl font-extrabold text-indigo-600">{{ taxaFechamento }}%</h3>
-                        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                            <div class="bg-indigo-500 h-1.5 rounded-full" :style="{width: taxaFechamento + '%'}"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Conversão por Origem -->
-                    <div class="glass-panel p-8 col-span-1 lg:col-span-2">
-                         <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-bold text-lg text-slate-800">Taxa de Conversão por Origem</h3>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left border-collapse">
-                                <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100">
-                                    <tr>
-                                        <th class="px-4 py-3">Origem</th>
-                                        <th class="px-4 py-3">Total Leads</th>
-                                        <th class="px-4 py-3">Fechados</th>
-                                        <th class="px-4 py-3 text-right">Taxa Conv.</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-50">
-                                    <tr v-for="origem in statsPorOrigem" :key="origem.nome" class="hover:bg-blue-50/50 transition duration-200">
-                                        <td class="px-4 py-4 font-bold text-slate-700">{{ origem.nome }}</td>
-                                        <td class="px-4 py-4 text-slate-600">{{ origem.total }}</td>
-                                        <td class="px-4 py-4 text-green-600 font-bold">{{ origem.fechados }}</td>
-                                        <td class="px-4 py-4 text-right">
-                                            <span class="px-2 py-1 rounded-md text-xs font-bold" :class="origem.taxa > 20 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'">{{ origem.taxa }}%</span>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <div class="glass-panel p-8 flex flex-col">
-                        <h3 class="font-bold text-lg mb-6 w-full text-left text-slate-800">Distribuição (Origem)</h3>
-                         <div class="relative w-full h-64">
-                             <canvas id="chartOrigem"></canvas>
-                         </div>
-                    </div>
-                </div>
-
-                <div class="glass-panel p-8">
-                    <h3 class="font-bold text-lg mb-6 text-slate-800">Funil de Etapas</h3>
-                    <div class="h-72 w-full">
-                        <canvas id="chartEtapas"></canvas>
-                    </div>
-                 </div>
-
-                 <!-- Ranking de Consultores -->
-                 <div class="glass-panel p-8 mt-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-lg text-slate-800">Ranking de Performance (Vendedores)</h3>
-                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">Top Performers</span>
-                    </div>
-                    <div class="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-sm text-left border-collapse">
-                            <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100 sticky top-0 bg-white z-10">
-                                <tr>
-                                    <th class="px-6 py-3">Posição</th>
-                                    <th class="px-6 py-3">Consultor</th>
-                                    <th class="px-6 py-3 text-center">Leads Totais</th>
-                                    <th class="px-6 py-3 text-center">Vendas (Fechados)</th>
-                                    <th class="px-6 py-3 text-right">Conversão Individual</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                <tr v-for="(c, i) in rankingConsultores" :key="c.nome" class="hover:bg-slate-50 transition duration-200">
-                                    <td class="px-6 py-4">
-                                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-md" 
-                                             :class="i === 0 ? 'bg-yellow-400 ring-2 ring-yellow-200' : (i === 1 ? 'bg-slate-400' : (i === 2 ? 'bg-orange-400' : 'bg-slate-200 text-slate-500'))">
-                                            {{ i + 1 }}
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 font-bold text-slate-700 flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 flex items-center justify-center font-bold text-xs uppercase border border-blue-200">
-                                            {{ c.nome.charAt(0) }}
-                                        </div>
-                                        {{ c.nome }}
-                                    </td>
-                                    <td class="px-6 py-4 text-center text-slate-600 font-medium">{{ c.leads }}</td>
-                                    <td class="px-6 py-4 text-center">
-                                        <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold">{{ c.fechados }}</span>
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <span class="font-bold text-slate-700">{{ c.conversao }}%</span>
-                                            <div class="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                                <div class="h-full bg-blue-500" :style="{width: c.conversao + '%'}"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                 </div>
-
-                 <!-- RESTAURADO: Performance Geográfica (DESCRITIVO/TABELA) -->
-                 <div class="glass-panel p-8 mt-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-lg text-slate-800">Performance Geográfica (Por Estado)</h3>
-                        <p class="text-sm text-slate-500">Relatório descritivo de leads por região.</p>
-                    </div>
-                    
-                    <div class="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-sm text-left border-collapse">
-                            <thead class="text-xs text-slate-400 font-bold uppercase border-b border-slate-100 sticky top-0 bg-white z-10">
-                                <tr>
-                                    <th class="px-4 py-3">Estado</th>
-                                    <th class="px-4 py-3 text-center">Total Leads</th>
-                                    <th class="px-4 py-3 text-center">Vendas (Fechados)</th>
-                                    <th class="px-4 py-3 text-center">Em Andamento</th>
-                                    <th class="px-4 py-3 text-right">Participação</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                <tr v-for="stat in statsPorEstado" :key="stat.estado" class="hover:bg-slate-50 transition">
-                                    <td class="px-4 py-3 font-bold text-slate-700 flex items-center gap-2">
-                                        <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs border border-indigo-100">
-                                            {{ stat.estado }}
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3 text-center font-medium text-slate-600">{{ stat.total }}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span v-if="stat.fechados > 0" class="px-2 py-1 bg-green-100 text-green-700 rounded-md font-bold text-xs">{{ stat.fechados }}</span>
-                                        <span v-else class="text-slate-300">-</span>
-                                    </td>
-                                    <td class="px-4 py-3 text-center">
-                                         <span v-if="stat.andamento > 0" class="px-2 py-1 bg-orange-100 text-orange-700 rounded-md font-bold text-xs">{{ stat.andamento }}</span>
-                                         <span v-else class="text-slate-300">-</span>
-                                    </td>
-                                    <td class="px-4 py-3 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <span class="text-xs font-bold text-slate-500">{{ filteredDashboardLeads.length ? ((stat.total / filteredDashboardLeads.length) * 100).toFixed(1) : 0 }}%</span>
-                                            <div class="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-indigo-500" :style="{width: (filteredDashboardLeads.length ? ((stat.total / filteredDashboardLeads.length) * 100) : 0) + '%'}"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr v-if="statsPorEstado.length === 0">
-                                    <td colspan="5" class="text-center py-8 text-slate-400 text-xs italic">
-                                        Nenhum dado geográfico disponível para os filtros atuais.
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MAPA RESTAURADO (TELA CHEIA) -->
-            <div v-if="view === 'mapa'" class="flex-1 flex flex-col h-full relative animate-fade-in p-6">
-                <div class="glass-panel w-full h-full p-0 overflow-hidden relative shadow-2xl border-0">
-                     <div id="mapContainer" class="w-full h-full z-10"></div>
-                     
-                     <!-- LEGENDA ADICIONADA AO MAPA FULLSCREEN -->
-                     <div class="absolute top-4 left-4 z-[500] space-y-2">
-                        <div class="bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-slate-200">
-                            <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-location-dot text-blue-500 mr-2"></i>Mapa de Calor</h3>
-                            <p class="text-[10px] text-slate-500 mt-1">{{ leads.length }} leads mapeados</p>
-                        </div>
-                        <div class="bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-slate-200">
-                             <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Legenda</h4>
-                             <div class="space-y-1.5">
-                                 <div class="flex items-center gap-2 text-xs font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span> Venda Fechada</div>
-                                 <div class="flex items-center gap-2 text-xs font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span> Em Andamento</div>
-                                 <div class="flex items-center gap-2 text-xs font-medium text-slate-600"><span class="w-3 h-3 rounded-full bg-red-500 shadow-sm"></span> Perdido/Sem Sucesso</div>
-                             </div>
-                        </div>
-                     </div>
-
-                     <div v-if="loadingMap" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-white/80 z-50">
-                        <i class="fa-solid fa-satellite-dish fa-spin mr-2 text-blue-500"></i> Carregando satélite...
-                    </div>
-                </div>
-            </div>
-
             <!-- PIPELINE -->
             <div v-if="view === 'pipeline'" class="flex flex-col h-full overflow-hidden">
                 <!-- Filtros Avançados (Vendedor e Etapa) -->
@@ -714,10 +703,13 @@
 
                 <div class="flex gap-6 h-full overflow-x-auto pb-4 px-2">
                     <!-- LOOP AGORA FILTRA COLUNAS -->
-                    <div v-for="etapa in filteredEtapas" :key="etapa" class="min-w-[320px] w-[320px] flex flex-col transition-all duration-300">
-                        <div class="flex justify-between items-center mb-4 px-1">
+                    <div v-for="etapa in filteredEtapas" :key="etapa" 
+                         class="min-w-[320px] w-[320px] flex flex-col transition-all duration-300"
+                         :class="{'col-urgente p-2 rounded-xl': etapa === 'Precisa de Atualizações Urgente'}">
+                        
+                        <div class="flex justify-between items-center mb-4 px-1 pt-2">
                             <div class="flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : 'bg-blue-500'"></span>
+                                <span class="w-2 h-2 rounded-full" :class="etapa === 'Recebido (Fechado)' ? 'bg-green-500' : (etapa === 'Precisa de Atualizações Urgente' ? 'bg-red-500 animate-ping' : 'bg-blue-500')"></span>
                                 <h3 class="font-bold text-slate-700 uppercase text-xs tracking-wider">{{ etapa }}</h3>
                             </div>
                             <span class="bg-white border border-slate-200 text-slate-600 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm">{{ getLeadsByEtapa(etapa).length }}</span>
@@ -770,8 +762,9 @@
                                 <!-- DATA e HORA adicionadas aqui no layout do footer -->
                                 <div class="flex justify-between items-center border-t border-slate-100 pt-3">
                                     <div class="flex flex-col">
-                                        <span v-if="lead.dataCriacao" class="text-[9px] font-medium text-slate-300 flex items-center gap-1 mb-1" title="Data/Hora Cadastro Sistema">
-                                            <i class="fa-solid fa-database"></i> Cad: {{ new Date(lead.dataCriacao).toLocaleDateString('pt-BR') }}
+                                        <!-- CAMPO DATA DE CADASTRO SOLICITADO -->
+                                        <span v-if="lead.dataCriacao" class="text-[9px] font-medium text-slate-400 flex items-center gap-1 mb-1" title="Data/Hora Cadastro Sistema">
+                                            <i class="fa-solid fa-database"></i> Cad: {{ new Date(lead.dataCriacao).toLocaleDateString('pt-BR') }} <span class="opacity-75">{{ new Date(lead.dataCriacao).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
                                         </span>
                                         <span class="text-sm font-bold text-slate-700">{{ formatMoeda(lead.receitaEstimada) }}</span>
                                     </div>
@@ -785,8 +778,9 @@
                 </div>
             </div>
 
-            <!-- TELA DE CONEXÕES MULTI-WHATSAPP -->
-            <div v-if="view === 'conexoes'" class="w-full h-full flex flex-col animate-fade-in">
+            <!-- ... (Outras Views: conexoes, relatorios, config permanecem iguais) ... -->
+             <!-- TELA DE CONEXÕES MULTI-WHATSAPP -->
+             <div v-if="view === 'conexoes'" class="w-full h-full flex flex-col animate-fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
                     
                     <!-- Coluna da Esquerda: LISTA DE VENDEDORES -->
@@ -1059,7 +1053,11 @@
 
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Telefone <span class="text-red-500">*</span></label>
-                            <input v-model="form.telefone" type="tel" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition font-medium text-slate-700" placeholder="(00) 00000-0000">
+                            <input v-model="form.telefone" @input="checkDuplicate" type="tel" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition font-medium text-slate-700" placeholder="(00) 00000-0000">
+                             <!-- ALERTA DUPLICIDADE -->
+                            <div v-if="duplicateWarning" class="mt-2 text-xs bg-red-100 text-red-600 p-2 rounded-lg font-bold flex items-center animate-pulse">
+                                <i class="fa-solid fa-triangle-exclamation mr-2"></i> {{ duplicateWarning }}
+                            </div>
                         </div>
 
                         <div>
@@ -1253,33 +1251,35 @@
                 errorMessage: '',
                 searchQuery: '',
                 searchInput: '',
-                showSuggestions: false, // Controle do dropdown
+                showSuggestions: false, 
                 filterStartDate: '',
                 filterEndDate: '',
+                filterDateType: 'criacao', // Novo Filtro Data (criacao vs contato)
                 showNotifications: false,
                 loadingMap: false,
                 
                 showModal: false,
                 editingLead: null,
+                duplicateWarning: '', // Aviso de Duplicidade
                 
-                // VARIAVEIS MULTI-SESSION WHATSAPP
                 whatsappSessions: [],
                 newSessionName: '',
                 activeSessionIndex: null,
                 
-                // TAREFAS COORDENADOR (NOVO)
                 isCoordAuthenticated: false,
                 showTaskAuthModal: false,
                 taskAuthInput: '',
                 tasks: [],
                 newTask: { text: '', date: '', time: '', desc: '' },
-                taskFilterDate: '', // Filtro de Data para Concluídas
+                taskFilterDate: '', 
+                
+                activeReminders: [],
+                dismissedReminders: new Set(),
+                reminderInterval: null,
 
-                // Filtro Pipeline
                 pipelineFilterConsultant: '',
                 pipelineFilterEtapa: '', 
 
-                // Dados de Exportação
                 exportData: {
                     date: new Date().toISOString().split('T')[0],
                     consultor: '',
@@ -1290,7 +1290,8 @@
                 allLeads: [],
                 listaConsultores: ['João', 'Maria', 'Pedro'], 
                 novoConsultor: '',
-                etapas: ['Primeiro Contato', 'Cadastro', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
+                // Nova etapa adicionada "Precisa de Atualizações Urgente"
+                etapas: ['Primeiro Contato', 'Cadastro', 'Precisa de Atualizações Urgente', 'Negociação', 'Processo em Andamento', 'Aguardando Resultado', 'Recebido (Fechado)', 'Sem Resposta', 'Perdido/Sem Possibilidade'],
                 
                 form: {
                     id: null, nome: '', telefone: '', beneficio: '', condicao: '',
@@ -1302,7 +1303,8 @@
                     msgAtiva: false,
                     dataFechamento: '',
                     dataContato: '',
-                    horaContato: '' 
+                    horaContato: '',
+                    dataUltimaAtualizacao: '' // Novo campo para automação
                 },
                 novaMsgCoord: '',
                 novaMsgVendedor: '',
@@ -1324,12 +1326,13 @@
             const saved = localStorage.getItem('revive_consultores');
             if(saved) this.listaConsultores = JSON.parse(saved);
             
-            // Carregar Sessoes Salvas
             const savedSessions = localStorage.getItem('revive_whatsapp_sessions');
             if(savedSessions) this.whatsappSessions = JSON.parse(savedSessions);
 
-            // Carregar Tarefas
             this.loadTasks();
+
+            // Intervalo Único: Verifica Lembretes e Automação de Pipeline
+            this.reminderInterval = setInterval(this.checkSystemAutomations, 30000); // 30 segundos
         },
         computed: {
             pageTitle() {
@@ -1340,7 +1343,7 @@
                     config: 'Configurações',
                     conexoes: 'Central de Conexões',
                     relatorios: 'Relatórios & Exportação',
-                    tarefas: 'Gestão de Demandas' // Novo Título
+                    tarefas: 'Gestão de Demandas'
                 };
                 return titles[this.view] || 'Revive CRM';
             },
@@ -1350,7 +1353,7 @@
                 return this.leads.filter(l => 
                     (l.nome && l.nome.toLowerCase().includes(term)) || 
                     (l.telefone && l.telefone.includes(term))
-                ).slice(0, 5); // Limita a 5 sugestões
+                ).slice(0, 5); 
             },
             filteredLeads() {
                 let result = this.leads;
@@ -1371,11 +1374,29 @@
             },
             filteredDashboardLeads() {
                 let result = this.leads;
-                if (this.filterStartDate) {
-                    result = result.filter(l => (l.dataCriacao || '').slice(0,10) >= this.filterStartDate);
-                }
-                if (this.filterEndDate) {
-                    result = result.filter(l => (l.dataCriacao || '').slice(0,10) <= this.filterEndDate);
+                
+                // NOVO: Lógica de Filtro (Data Criação vs Data Contato)
+                const start = this.filterStartDate;
+                const end = this.filterEndDate;
+
+                if (start || end) {
+                    result = result.filter(l => {
+                        let dateToCheck;
+                        
+                        if (this.filterDateType === 'contato') {
+                             dateToCheck = l.dataContato || ''; // Formato YYYY-MM-DD
+                        } else {
+                             dateToCheck = (l.dataCriacao || '').slice(0, 10);
+                        }
+
+                        // Se não tiver data e estiver filtrando, exclui (ou inclui se quiser lógica diferente)
+                        if (!dateToCheck) return false;
+
+                        let valid = true;
+                        if (start && dateToCheck < start) valid = false;
+                        if (end && dateToCheck > end) valid = false;
+                        return valid;
+                    });
                 }
                 return result;
             },
@@ -1447,9 +1468,8 @@
                 });
                 return Object.values(map).sort((a, b) => b.total - a.total);
             },
-            // Computed Tarefas
             pendingTasks() {
-                return this.tasks.filter(t => !t.completed).sort((a,b) => new Date(a.date || '9999-12-31') - new Date(b.date || '9999-12-31'));
+                return this.tasks.filter(t => !t.completed);
             },
             overdueTasks() {
                 const today = new Date().toISOString().split('T')[0];
@@ -1469,7 +1489,7 @@
                 this.salaAtual = this.salaInput.toUpperCase().trim();
                 localStorage.setItem('revive_sala_atual', this.salaAtual);
                 this.updateLeadsByRoom();
-                this.loadTasks(); // Carrega tarefas ao mudar de sala
+                this.loadTasks(); 
             },
             sairSala() {
                 this.salaAtual = '';
@@ -1490,7 +1510,6 @@
                 this.showSuggestions = false;
                 if(this.searchInput) {
                     this.showToast('Buscando...', 'fa-search');
-                    // FIX: Força a navegação para o Pipeline para ver o resultado
                     this.view = 'pipeline'; 
                 } else {
                     this.showToast('Filtro limpo', 'fa-rotate-left');
@@ -1499,31 +1518,17 @@
             async selectSuggestion(lead) {
                 this.showSuggestions = false;
                 this.searchInput = '';
-                // FIX: Limpa o filtro de texto para garantir que o card do lead exista no DOM e possa ser rolado
                 this.searchQuery = ''; 
-                
-                // 1. Mudar para view Pipeline
                 this.view = 'pipeline';
-                
-                // 2. Esperar renderização
                 await this.$nextTick();
-                
-                // 3. Rolar até o card e destacar (Com delay visual inteligente)
                 setTimeout(() => {
                     const el = document.getElementById('lead-' + lead.id);
                     if(el) {
                         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         el.classList.add('highlight-card');
-                        
-                        // Remover classe de destaque após a animação (aprox 2.5s)
                         setTimeout(() => el.classList.remove('highlight-card'), 2500);
-                        
-                        // 4. Abrir modal com um pequeno delay para que o usuário veja o "piscar" primeiro
-                        setTimeout(() => {
-                             this.editLead(lead);
-                        }, 800); 
+                        setTimeout(() => { this.editLead(lead); }, 800); 
                     } else {
-                         // Fallback se o card não for encontrado (ex: filtro ativo)
                          this.editLead(lead);
                     }
                 }, 500); 
@@ -1596,6 +1601,7 @@
                     this.dbConnected = true;
                     this.allLeads = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     this.updateLeadsByRoom();
+                    this.checkPipelineStagnation(); // Verifica estagnação ao carregar
                     if(this.view === 'dashboard') {
                         this.updateCharts();
                         setTimeout(() => this.initMap('dashboardMapContainer'), 500);
@@ -1622,7 +1628,6 @@
             getLeadsByEtapa(etapa) { 
                 return this.filteredLeads.filter(l => {
                     const matchEtapa = l.etapa === etapa;
-                    // Filtro de Consultor do Pipeline
                     const matchConsultant = this.pipelineFilterConsultant ? l.consultor === this.pipelineFilterConsultant : true;
                     return matchEtapa && matchConsultant;
                 });
@@ -1635,13 +1640,8 @@
                 const container = document.getElementById(targetId);
                 if(!container) return;
                 
-                if (typeof L === 'undefined') {
-                    console.error("Leaflet não carregado.");
-                    return;
-                }
+                if (typeof L === 'undefined') { console.error("Leaflet não carregado."); return; }
                 
-                // Remove mapa existente se houver conflito no mesmo container ou instância global
-                // Para simplificar, vamos usar uma variável diferente se for o dashboard
                 if (targetId === 'mapContainer') {
                      if (this.mapInstance) { this.mapInstance.remove(); this.mapInstance = null; }
                 } else {
@@ -1777,9 +1777,38 @@
 
                 if (this.dbConnected) {
                     const leadRef = doc(db, 'leads', leadId);
-                    const updatePayload = { etapa: novaEtapa };
+                    const updatePayload = { 
+                        etapa: novaEtapa,
+                        dataUltimaAtualizacao: new Date().toISOString()
+                    };
                     if(lead.dataFechamento) updatePayload.dataFechamento = lead.dataFechamento;
                     await updateDoc(leadRef, updatePayload);
+                }
+            },
+
+            // --- DRAG AND DROP TAREFAS ---
+            startDragTask(evt, task) {
+                evt.dataTransfer.dropEffect = 'move';
+                evt.dataTransfer.effectAllowed = 'move';
+                evt.dataTransfer.setData('taskId', task.id);
+            },
+            onDropTask(evt, targetTask) {
+                const draggedTaskId = evt.dataTransfer.getData('taskId');
+                if (!draggedTaskId) return;
+
+                const draggedTask = this.tasks.find(t => t.id == draggedTaskId);
+                if (!draggedTask) return;
+                
+                if (draggedTask.id === targetTask.id) return;
+
+                const oldIndex = this.tasks.findIndex(t => t.id == draggedTaskId);
+                const newIndex = this.tasks.findIndex(t => t.id == targetTask.id);
+
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    this.tasks.splice(oldIndex, 1);
+                    this.tasks.splice(newIndex, 0, draggedTask);
+                    this.saveTasks();
+                    this.showToast('Prioridade atualizada!', 'fa-arrow-down-up-across-line');
                 }
             },
 
@@ -1794,24 +1823,19 @@
                     msgAtiva: false,
                     dataFechamento: '',
                     dataContato: '',
-                    horaContato: ''
+                    horaContato: '',
+                    dataUltimaAtualizacao: ''
                 };
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = null;
                 this.showModal = true;
+                this.duplicateWarning = '';
                 this.cidadesPorEstado = [];
             },
             editLead(lead) {
                 this.form = { ...lead };
-                // Correção: Garante que horaContato exista para leads antigos
-                if (this.form.horaContato === undefined) {
-                    this.form.horaContato = '';
-                }
-
-                if(this.form.estado) {
-                    this.carregarCidades(this.form.estado);
-                }
-                
+                if (this.form.horaContato === undefined) { this.form.horaContato = ''; }
+                if(this.form.estado) { this.carregarCidades(this.form.estado); }
                 if(!this.form.historicoMsg) this.form.historicoMsg = [];
                 if(this.form.msgCoordenador && this.form.historicoMsg.length === 0) {
                      this.form.historicoMsg.push({ tipo: 'coord', texto: this.form.msgCoordenador, data: new Date().toISOString() });
@@ -1819,11 +1843,38 @@
                 this.novaMsgCoord = ''; this.novaMsgVendedor = '';
                 this.editingLead = true;
                 this.showModal = true;
+                this.duplicateWarning = '';
             },
+
+            // --- DETECTOR DE DUPLICIDADE (NOVO) ---
+            checkDuplicate() {
+                if(!this.form.telefone || this.form.telefone.length < 8) {
+                    this.duplicateWarning = '';
+                    return;
+                }
+                // Procura na lista (allLeads) alguém com telefone similar
+                // Ignora o próprio lead se estiver editando
+                const cleanInput = this.cleanPhone(this.form.telefone);
+                const match = this.allLeads.find(l => {
+                    if (this.editingLead && l.id === this.form.id) return false;
+                    return this.cleanPhone(l.telefone) === cleanInput;
+                });
+
+                if (match) {
+                    this.duplicateWarning = `Cuidado! Telefone já cadastrado para: ${match.nome || 'Lead sem nome'} (${match.etapa})`;
+                } else {
+                    this.duplicateWarning = '';
+                }
+            },
+
             async saveLead() {
                 if (!this.dbConnected) return alert("Erro: Offline.");
                 const data = { ...this.form };
                 data.sala = this.salaAtual;
+                
+                // Atualiza data de "mexida" no lead
+                data.dataUltimaAtualizacao = new Date().toISOString();
+
                 delete data.id;
 
                 const leadsRef = collection(db, 'leads');
@@ -1853,7 +1904,6 @@
                 this.listaConsultores.splice(index, 1);
                 localStorage.setItem('revive_consultores', JSON.stringify(this.listaConsultores));
             },
-            // NOVOS MÉTODOS MULTI-SESSION
             addNewSession() {
                 if(!this.newSessionName || this.newSessionName.trim() === '') {
                     this.showToast('Digite um nome para adicionar!', 'fa-circle-exclamation');
@@ -1877,7 +1927,7 @@
                 window.open('https://web.whatsapp.com/', '_blank', 'width=1000,height=700');
             },
 
-            // --- TAREFAS COORDENADOR ---
+            // --- TAREFAS ---
             acessarTarefas() {
                 if (this.isCoordAuthenticated) {
                     this.view = 'tarefas';
@@ -1899,23 +1949,17 @@
             },
             addTask() {
                 if(!this.newTask.text) return;
-                
                 const task = {
                     id: Date.now(),
                     text: this.newTask.text,
                     date: this.newTask.date,
-                    time: this.newTask.time, // Add hora
-                    desc: this.newTask.desc, // Add descrição opcional
+                    time: this.newTask.time,
+                    desc: this.newTask.desc,
                     completed: false
                 };
-                
                 this.tasks.push(task);
                 this.saveTasks();
-                // Limpar todos os campos
-                this.newTask.text = '';
-                this.newTask.desc = '';
-                this.newTask.date = '';
-                this.newTask.time = '';
+                this.newTask.text = ''; this.newTask.desc = ''; this.newTask.date = ''; this.newTask.time = '';
                 this.showToast('Demanda Adicionada!', 'fa-list-check');
             },
             toggleTask(task) {
@@ -1927,7 +1971,6 @@
                 this.saveTasks();
             },
             saveTasks() {
-                // Salva localmente, associado à sala atual
                 if(this.salaAtual) {
                     localStorage.setItem(`revive_tasks_${this.salaAtual}`, JSON.stringify(this.tasks));
                 }
@@ -1952,50 +1995,137 @@
             getTaskDateClass(dateStr) {
                 if(!dateStr) return 'bg-slate-100 text-slate-500 border-slate-200';
                 const today = new Date().toISOString().split('T')[0];
-                if(dateStr < today) return 'bg-red-100 text-red-800 border-red-300'; // Atrasado (Vermelho Escuro/Vinho)
-                if(dateStr === today) return 'bg-red-50 text-red-600 border-red-200 animate-pulse'; // Hoje (Vermelho Urgente)
-                return 'bg-orange-50 text-orange-600 border-orange-200'; // Futuro (Laranja)
+                if(dateStr < today) return 'bg-red-100 text-red-800 border-red-300';
+                if(dateStr === today) return 'bg-red-50 text-red-600 border-red-200 animate-pulse';
+                return 'bg-orange-50 text-orange-600 border-orange-200';
             },
 
-            // --- FUNÇÕES DE EXPORTAÇÃO ---
+            // --- SISTEMA DE AUTOMAÇÃO E LEMBRETES UNIFICADO ---
+            checkSystemAutomations() {
+                const now = new Date();
+                const active = [];
+
+                // 1. Lembretes de Tarefas
+                this.pendingTasks.forEach(task => {
+                    if (task.date && task.time) {
+                         const taskDateTime = new Date(`${task.date}T${task.time}`);
+                         const diffMs = taskDateTime - now;
+                         const diffMins = Math.floor(diffMs / 60000);
+
+                         if (diffMins >= 0 && diffMins <= 30) {
+                             if (!this.dismissedReminders.has(task.id)) {
+                                 active.push({
+                                     id: task.id,
+                                     text: `Tarefa: ${task.text}`,
+                                     subtext: `Vence em ${diffMins} min`,
+                                     type: 'task'
+                                 });
+                             }
+                         }
+                    }
+                });
+
+                // 2. Alerta de Tempo de Resposta (Novos Leads > 30 min sem ação)
+                // Regra: Lead criado hoje, etapa inicial, criado há +30min
+                const thirtyMinsMs = 30 * 60 * 1000;
+                this.leads.forEach(lead => {
+                    if (lead.dataCriacao && 
+                       (lead.etapa === 'Primeiro Contato' || lead.etapa === 'Cadastro')) {
+                        
+                        const createdTime = new Date(lead.dataCriacao).getTime();
+                        const timeDiff = now.getTime() - createdTime;
+
+                        // Se passou de 30 mins (e menos de 24h para não poluir com antigos)
+                        if (timeDiff > thirtyMinsMs && timeDiff < (24 * 60 * 60 * 1000)) {
+                             const reminderId = `lead_resp_${lead.id}`;
+                             if (!this.dismissedReminders.has(reminderId)) {
+                                 active.push({
+                                     id: reminderId,
+                                     text: `TEMPO DE RESPOSTA PASSOU: ${lead.nome || 'Novo Lead'}`,
+                                     subtext: 'PODE LIGAR AGORA!',
+                                     type: 'lead'
+                                 });
+                             }
+                        }
+                    }
+                });
+                
+                this.activeReminders = active;
+
+                // 3. Automação de Pipeline (Mover para Urgente se > 3 dias)
+                this.checkPipelineStagnation();
+            },
+
+            async checkPipelineStagnation() {
+                // Se não estiver conectado, não tenta atualizar o banco
+                if (!this.dbConnected) return;
+
+                const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+
+                this.leads.forEach(async (lead) => {
+                    // Verifica apenas nas etapas iniciais
+                    if (lead.etapa === 'Primeiro Contato' || lead.etapa === 'Cadastro') {
+                        
+                        // Usa dataUltimaAtualizacao ou fallback para dataCriacao
+                        const lastInteraction = lead.dataUltimaAtualizacao 
+                            ? new Date(lead.dataUltimaAtualizacao).getTime() 
+                            : (lead.dataCriacao ? new Date(lead.dataCriacao).getTime() : now);
+                        
+                        if ((now - lastInteraction) > threeDaysMs) {
+                            // Mover automaticamente
+                            console.log(`Movendo lead ${lead.nome} para urgência.`);
+                            
+                            // Atualiza localmente para feedback instantâneo
+                            lead.etapa = 'Precisa de Atualizações Urgente';
+                            
+                            // Atualiza no Firebase
+                            const leadRef = doc(db, 'leads', lead.id);
+                            await updateDoc(leadRef, { 
+                                etapa: 'Precisa de Atualizações Urgente',
+                                dataUltimaAtualizacao: new Date().toISOString() // Reseta o timer ao mover
+                            });
+                        }
+                    }
+                });
+            },
+
+            dismissReminder(id) {
+                this.dismissedReminders.add(id);
+                this.activeReminders = this.activeReminders.filter(r => r.id !== id);
+                this.showToast('Lembrete Confirmado!', 'fa-check');
+            },
+
+            // --- EXPORTAÇÃO ---
             getFilteredExportData() {
                 let filtered = this.leads;
-                
-                // Filtro por Data
                 if(this.exportData.date) {
                     if (this.exportData.dateType === 'contato') {
-                         // Filtra pela Data do Contato (Manual)
                          filtered = filtered.filter(l => l.dataContato === this.exportData.date);
                     } else {
-                         // Filtra pela Data de Cadastro (Automático - Padrão)
                          filtered = filtered.filter(l => (l.dataCriacao || '').slice(0,10) === this.exportData.date);
                     }
                 }
-
-                // Filtro por Consultor (se selecionado)
                 if(this.exportData.consultor) {
                     filtered = filtered.filter(l => l.consultor === this.exportData.consultor);
                 }
-
                 return filtered;
             },
             generateCSV() {
                 const data = this.getFilteredExportData();
                 if(data.length === 0) return this.showToast('Nenhum dado para exportar na data selecionada.', 'fa-circle-exclamation');
 
-                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM para acentos
-                csvContent += "Nome,Telefone,Data_e_Hora_Contato,Fratura,Observacao\n"; // Cabeçalho
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+                csvContent += "Nome,Telefone,Data_e_Hora_Contato,Fratura,Observacao\n"; 
 
                 data.forEach(l => {
-                    const nome = (l.nome || l.telefone || 'Sem Nome').replace(/,/g, ' '); // Evitar quebra do CSV
+                    const nome = (l.nome || l.telefone || 'Sem Nome').replace(/,/g, ' '); 
                     const fone = (l.telefone || '').replace(/,/g, ' ');
                     const dataPart = l.dataContato ? l.dataContato.split('-').reverse().join('/') : 'N/A';
                     const horaPart = l.horaContato ? l.horaContato : '';
                     const dataHoraFull = horaPart ? `${dataPart} ${horaPart}` : dataPart;
-                    
                     const fratura = (l.fratura || 'N/A').replace(/,/g, ' ');
                     const obs = (l.obs || '').replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, ';'); 
-                    
                     csvContent += `${nome},${fone},${dataHoraFull},${fratura},${obs}\n`;
                 });
 
@@ -2044,7 +2174,6 @@
                     const dataPart = l.dataContato ? l.dataContato.split('-').reverse().join('/') : '-';
                     const horaPart = l.horaContato ? l.horaContato : '';
                     const dataHoraFull = horaPart ? `${dataPart} às ${horaPart}` : dataPart;
-
                      htmlContent += `
                         <tr>
                             <td>${l.nome || 'Sem Nome'}</td>
@@ -2055,9 +2184,7 @@
                         </tr>
                      `;
                 });
-
                 htmlContent += `</tbody></table></body></html>`;
-
                 const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
