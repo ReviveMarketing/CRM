@@ -510,10 +510,10 @@
                 </div>
             </div>
 
-            <!-- NOVA TELA: PIPELINE KANBAN (RESTAURADO) -->
+            <!-- PIPELINE KANBAN (COM FILTRO MENSAL) -->
             <div v-if="view === 'pipeline'" class="flex flex-col h-full animate-fade-in">
                 <!-- Filtros do Pipeline -->
-                <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 items-center">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-filter text-slate-300"></i>
                         <span class="text-xs font-bold text-slate-500 uppercase">Filtros:</span>
@@ -534,7 +534,18 @@
                         <option value="">Todas Cidades</option>
                         <option v-for="cidade in cidadesFiltro" :value="cidade">{{ cidade }}</option>
                     </select>
-                    <button v-if="pipelineFilterConsultant || pipelineFilterEtapa || pipelineFilterEstado || pipelineFilterCidade" @click="pipelineFilterConsultant=''; pipelineFilterEtapa=''; pipelineFilterEstado=''; pipelineFilterCidade=''" class="text-xs text-red-500 hover:text-red-700 font-bold px-4 py-2 bg-red-50 rounded-lg transition"><i class="fa-solid fa-times"></i> Limpar Filtros</button>
+                    
+                    <!-- NOVO: Filtro Mensal -->
+                    <div class="flex items-center gap-2 border-l border-slate-200 pl-4 ml-2">
+                        <i class="fa-regular fa-calendar-alt text-slate-400"></i>
+                        <input type="month" v-model="pipelineFilterMonth" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 outline-none font-medium" title="Filtrar por Mês">
+                    </div>
+
+                    <button v-if="pipelineFilterConsultant || pipelineFilterEtapa || pipelineFilterEstado || pipelineFilterCidade || pipelineFilterMonth" 
+                            @click="pipelineFilterConsultant=''; pipelineFilterEtapa=''; pipelineFilterEstado=''; pipelineFilterCidade=''; pipelineFilterMonth=''" 
+                            class="text-xs text-red-500 hover:text-red-700 font-bold px-4 py-2 bg-red-50 rounded-lg transition">
+                        <i class="fa-solid fa-times"></i> Limpar Filtros
+                    </button>
                 </div>
 
                 <!-- Quadro Kanban -->
@@ -606,10 +617,9 @@
                 </div>
             </div>
 
-            <!-- NOVA TELA: TAREFAS DO COORDENADOR -->
+            <!-- TELA: TAREFAS DO COORDENADOR -->
             <div v-if="view === 'tarefas'" class="max-w-5xl mx-auto w-full animate-fade-in">
-                <!-- (Conteúdo de Tarefas mantido igual ao anterior) -->
-                <!-- MINI DASHBOARD DE TAREFAS (NOVO) -->
+                <!-- MINI DASHBOARD DE TAREFAS -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div class="glass-panel p-4 border-l-4 border-orange-500 flex items-center justify-between">
                         <div>
@@ -618,7 +628,6 @@
                         </div>
                         <i class="fa-solid fa-clock text-orange-200 text-3xl"></i>
                     </div>
-                     <!-- CARD ATRASADAS (NOVO) -->
                     <div class="glass-panel p-4 border-l-4 border-red-500 flex items-center justify-between">
                         <div>
                             <p class="text-[10px] font-bold text-slate-400 uppercase">Atrasadas</p>
@@ -652,7 +661,6 @@
                                 <input v-model="newTask.text" @keyup.enter="addTask" type="text" placeholder="Título da demanda (Ex: Reunir com equipe...)" class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-300 font-medium text-slate-700">
                             </div>
                         </div>
-                         <!-- NOVO CAMPO DESCRIÇÃO OPCIONAL -->
                          <div class="flex-1 w-full">
                             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Descrição (Opcional)</label>
                             <input v-model="newTask.desc" @keyup.enter="addTask" type="text" placeholder="Detalhes extras sobre o que vai rolar..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-300 font-medium text-slate-700 text-sm">
@@ -664,7 +672,6 @@
                             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Prazo / Data</label>
                             <input v-model="newTask.date" type="date" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-300 font-medium text-slate-700">
                         </div>
-                        <!-- NOVO CAMPO HORA -->
                         <div class="w-full md:w-40">
                             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Horário</label>
                             <input v-model="newTask.time" type="time" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-300 font-medium text-slate-700">
@@ -770,7 +777,7 @@
                 </div>
             </div>
 
-            <!-- NOVA VISUALIZAÇÃO DE MAPA: ESTUDO DETALHADO -->
+            <!-- VISUALIZAÇÃO DE MAPA: ESTUDO DETALHADO -->
             <div v-if="view === 'mapa'" class="flex flex-col h-full animate-fade-in gap-6">
                 <!-- GRID DE KPIS GEOGRÁFICOS -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -990,8 +997,15 @@
                     <!-- Filtros de Exportação -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div>
-                            <label class="block text-sm font-bold text-slate-500 mb-2">Data do Relatório</label>
-                            <input type="date" v-model="exportData.date" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-bold text-slate-500">Período do Relatório</label>
+                                <div class="flex gap-2">
+                                    <label class="text-xs font-bold text-slate-600 flex items-center gap-1 cursor-pointer"><input type="radio" v-model="exportData.periodType" value="dia"> Dia</label>
+                                    <label class="text-xs font-bold text-slate-600 flex items-center gap-1 cursor-pointer"><input type="radio" v-model="exportData.periodType" value="mes"> Mês</label>
+                                </div>
+                            </div>
+                            <input v-if="exportData.periodType === 'dia'" type="date" v-model="exportData.date" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
+                            <input v-else type="month" v-model="exportData.month" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-200">
                         </div>
                         
                         <div class="flex flex-col gap-4">
@@ -1035,7 +1049,7 @@
                                 <i class="fa-solid fa-file-word text-blue-500 text-2xl"></i>
                                 <h4 class="font-bold text-slate-800">Resumo Diário (Word)</h4>
                             </div>
-                            <p class="text-xs text-slate-500 mb-6">Gera um documento formatado com o resumo dos atendimentos do dia.</p>
+                            <p class="text-xs text-slate-500 mb-6">Gera um documento formatado com o resumo dos atendimentos do período selecionado.</p>
                             <button @click="generateWord" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-100 transition transform group-hover:-translate-y-1">
                                 <i class="fa-solid fa-file-lines mr-2"></i> Baixar Resumo DOC
                             </button>
@@ -1320,23 +1334,35 @@
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // ... (STATIC_COORDS e USER_FIREBASE_CONFIG permanecem iguais)
+    // Coordenadas ampliadas para TODOS os 27 estados Brasileiros + Variações com/sem acento
     const STATIC_COORDS = {
-        "SP": [-23.5505, -46.6333], "SAO PAULO": [-23.5505, -46.6333],
-        "RJ": [-22.9068, -43.1729], "RIO DE JANEIRO": [-22.9068, -43.1729],
-        "MG": [-19.9167, -43.9345], "MINAS GERAIS": [-19.9167, -43.9345],
-        "ES": [-20.3155, -40.3128], "ESPIRITO SANTO": [-20.3155, -40.3128],
+        "AC": [-9.0238, -70.8120], "ACRE": [-9.0238, -70.8120],
+        "AL": [-9.5328, -36.6666], "ALAGOAS": [-9.5328, -36.6666],
+        "AP": [1.4196, -51.7792], "AMAPA": [1.4196, -51.7792], "AMAPÁ": [1.4196, -51.7792],
+        "AM": [-3.4168, -65.8561], "AMAZONAS": [-3.4168, -65.8561],
+        "BA": [-12.5797, -41.7007], "BAHIA": [-12.5797, -41.7007],
+        "CE": [-5.4984, -39.3206], "CEARA": [-5.4984, -39.3206], "CEARÁ": [-5.4984, -39.3206],
+        "DF": [-15.7998, -47.8645], "DISTRITO FEDERAL": [-15.7998, -47.8645],
+        "ES": [-19.1834, -40.3089], "ESPIRITO SANTO": [-19.1834, -40.3089], "ESPÍRITO SANTO": [-19.1834, -40.3089],
+        "GO": [-15.8270, -49.8362], "GOIAS": [-15.8270, -49.8362], "GOIÁS": [-15.8270, -49.8362],
+        "MA": [-4.9609, -45.2744], "MARANHAO": [-4.9609, -45.2744], "MARANHÃO": [-4.9609, -45.2744],
+        "MT": [-12.6819, -56.9211], "MATO GROSSO": [-12.6819, -56.9211],
+        "MS": [-20.7722, -54.3677], "MATO GROSSO DO SUL": [-20.7722, -54.3677],
+        "MG": [-18.5122, -44.5550], "MINAS GERAIS": [-18.5122, -44.5550],
+        "PA": [-1.9981, -54.9306], "PARA": [-1.9981, -54.9306], "PARÁ": [-1.9981, -54.9306],
+        "PB": [-7.1153, -36.8250], "PARAIBA": [-7.1153, -36.8250], "PARAÍBA": [-7.1153, -36.8250],
+        "PR": [-25.2521, -52.0215], "PARANA": [-25.2521, -52.0215], "PARANÁ": [-25.2521, -52.0215],
+        "PE": [-8.8137, -36.9541], "PERNAMBUCO": [-8.8137, -36.9541],
+        "PI": [-7.7183, -42.7289], "PIAUI": [-7.7183, -42.7289], "PIAUÍ": [-7.7183, -42.7289],
+        "RJ": [-22.9094, -43.2094], "RIO DE JANEIRO": [-22.9094, -43.2094],
+        "RN": [-5.4026, -36.9541], "RIO GRANDE DO NORTE": [-5.4026, -36.9541],
         "RS": [-30.0346, -51.2177], "RIO GRANDE DO SUL": [-30.0346, -51.2177],
-        "SC": [-27.5954, -48.5480], "SANTA CATARINA": [-27.5954, -48.5480],
-        "PR": [-25.4284, -49.2733], "PARANA": [-25.4284, -49.2733],
-        "BA": [-12.9777, -38.5016], "BAHIA": [-12.9777, -38.5016],
-        "PE": [-8.0476, -34.8770], "PERNAMBUCO": [-8.0476, -34.8770],
-        "CE": [-3.7172, -38.5434], "CEARA": [-3.7172, -38.5434],
-        "DF": [-15.7975, -47.8919], "DISTRITO FEDERAL": [-15.7975, -47.8919],
-        "GO": [-16.6869, -49.2648], "GOIAS": [-16.6869, -49.2648],
-        "AM": [-3.1190, -60.0217], "AMAZONAS": [-3.1190, -60.0217],
-        "MT": [-15.6014, -56.0979], "MATO GROSSO": [-15.6014, -56.0979],
-        "MS": [-20.4697, -54.6201], "MATO GROSSO DO SUL": [-20.4697, -54.6201]
+        "RO": [-11.5057, -63.5806], "RONDONIA": [-11.5057, -63.5806], "RONDÔNIA": [-11.5057, -63.5806],
+        "RR": [2.7376, -62.0751], "RORAIMA": [2.7376, -62.0751],
+        "SC": [-27.2423, -50.2189], "SANTA CATARINA": [-27.2423, -50.2189],
+        "SP": [-23.5505, -46.6333], "SAO PAULO": [-23.5505, -46.6333], "SÃO PAULO": [-23.5505, -46.6333],
+        "SE": [-10.5741, -37.3857], "SERGIPE": [-10.5741, -37.3857],
+        "TO": [-10.1753, -48.2982], "TOCANTINS": [-10.1753, -48.2982]
     };
 
     const USER_FIREBASE_CONFIG = {
@@ -1392,9 +1418,12 @@
                 pipelineFilterEtapa: '', 
                 pipelineFilterEstado: '',
                 pipelineFilterCidade: '',
+                pipelineFilterMonth: '',
 
                 exportData: {
+                    periodType: 'dia', 
                     date: new Date().toISOString().split('T')[0],
+                    month: new Date().toISOString().slice(0, 7),
                     consultor: '',
                     dateType: 'criacao' 
                 },
@@ -1551,11 +1580,12 @@
             rankingGeografico() {
                 const map = {};
                 this.filteredDashboardLeads.forEach(l => {
-                    const uf = l.estado ? l.estado.trim().toUpperCase() : 'N/A';
+                    // Normaliza removendo acentos para agrupar SÃO PAULO = SAO PAULO
+                    const ufNorm = l.estado ? l.estado.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : 'N/A';
                     const city = l.cidade ? l.cidade.trim() : '';
-                    const key = city ? `${city} - ${uf}` : uf;
+                    const key = city ? `${city} - ${ufNorm}` : ufNorm;
                     
-                    if (!map[key]) map[key] = { nome: key, total: 0, pendente: 0, fechado: 0, perdido: 0 };
+                    if (!map[key]) map[key] = { nome: city ? `${city} - ${l.estado || ''}` : (l.estado || 'N/A'), total: 0, pendente: 0, fechado: 0, perdido: 0 };
                     
                     map[key].total++;
                     
@@ -1580,12 +1610,13 @@
             statsPorEstado() {
                 const map = {};
                 this.filteredDashboardLeads.forEach(l => {
-                    const uf = l.estado || 'N/A';
-                    if(!map[uf]) map[uf] = { nome: uf, total: 0, fechados: 0, taxa: 0 };
+                    const ufNorm = l.estado ? l.estado.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : 'N/A';
                     
-                    map[uf].total++;
+                    if(!map[ufNorm]) map[ufNorm] = { nome: l.estado || 'N/A', total: 0, fechados: 0, taxa: 0 };
+                    
+                    map[ufNorm].total++;
                     if(l.etapa === 'Recebido (Fechado)') {
-                        map[uf].fechados++;
+                        map[ufNorm].fechados++;
                     }
                 });
                  return Object.values(map).map(s => {
@@ -1814,7 +1845,14 @@
                     const matchConsultant = this.pipelineFilterConsultant ? l.consultor === this.pipelineFilterConsultant : true;
                     const matchEstado = this.pipelineFilterEstado ? l.estado === this.pipelineFilterEstado : true;
                     const matchCidade = this.pipelineFilterCidade ? l.cidade === this.pipelineFilterCidade : true;
-                    return matchEtapa && matchConsultant && matchEstado && matchCidade;
+                    
+                    let matchMonth = true;
+                    if (this.pipelineFilterMonth) {
+                        const leadDate = l.dataContato || (l.dataCriacao ? l.dataCriacao.slice(0, 10) : '');
+                        matchMonth = leadDate ? leadDate.startsWith(this.pipelineFilterMonth) : false;
+                    }
+
+                    return matchEtapa && matchConsultant && matchEstado && matchCidade && matchMonth;
                 });
             },
             isIncomplete(lead) { return lead.telefone && !lead.nome; },
@@ -1846,56 +1884,61 @@
                 this.filteredDashboardLeads.forEach(lead => {
                     if(lead.cidade || lead.estado) {
                         const cidadeLimpa = lead.cidade ? lead.cidade.trim() : '';
-                        const estadoLimpo = lead.estado ? lead.estado.trim().toUpperCase() : '';
+                        const estadoNorm = lead.estado ? lead.estado.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : 'SP';
                         
-                        let key = cidadeLimpa ? `${cidadeLimpa}-${estadoLimpo}` : estadoLimpo;
-                        let query = cidadeLimpa ? `${cidadeLimpa}, ${estadoLimpo}, Brasil` : `${estadoLimpo}, Brasil`;
+                        let key = cidadeLimpa ? `${cidadeLimpa}-${estadoNorm}` : estadoNorm;
 
-                        if(!cityGroups[key]) cityGroups[key] = { leads: [], fullQuery: query };
+                        if(!cityGroups[key]) cityGroups[key] = { leads: [], ufNorm: estadoNorm, cidade: cidadeLimpa };
                         cityGroups[key].leads.push(lead);
                     }
                 });
 
+                // Renderiza instantaneamente de forma geométrica em torno da Capital
                 for (const [key, data] of Object.entries(cityGroups)) {
-                    let coords = this.cityCache[key];
-                    if (!coords) {
-                        try {
-                            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.fullQuery)}&limit=1`);
-                            const apiData = await response.json();
-                            if(apiData && apiData.length > 0) {
-                                coords = [parseFloat(apiData[0].lat), parseFloat(apiData[0].lon)];
-                                this.cityCache[key] = coords; 
-                            }
-                        } catch(e) { console.log('Erro geocoding', e); }
+                    let baseCoords = STATIC_COORDS[data.ufNorm] || [-14.2350, -51.9253]; 
+
+                    let latOffset = 0;
+                    let lngOffset = 0;
+                    
+                    if (data.cidade) {
+                        // Calcula um hash rápido do nome da cidade para espalhar no estado sem depender de APIs lentas
+                        let hash = 0;
+                        for (let i = 0; i < data.cidade.length; i++) {
+                            hash = data.cidade.charCodeAt(i) + ((hash << 5) - hash);
+                        }
+                        latOffset = ((Math.abs(hash) % 100) / 100) * 3 - 1.5; // Espalha em ~150km de latitude
+                        lngOffset = (((Math.abs(hash) >> 8) % 100) / 100) * 3 - 1.5; // Espalha em ~150km de longitude
                     }
 
-                    if (coords) {
-                        data.leads.forEach(lead => {
-                            let color = '#F97316'; 
-                            if (lead.etapa === 'Recebido (Fechado)') color = '#22C55E';
-                            else if (lead.etapa === 'Perdido/Sem Possibilidade' || lead.etapa === 'Sem Resposta / Perdido') color = '#EF4444';
-                            
-                            const latJitter = coords[0] + (Math.random() - 0.5) * 0.008;
-                            const lngJitter = coords[1] + (Math.random() - 0.5) * 0.008;
+                    const cityLat = baseCoords[0] + latOffset;
+                    const cityLng = baseCoords[1] + lngOffset;
 
-                            L.circleMarker([latJitter, lngJitter], { 
-                                radius: 8, 
-                                fillColor: color, 
-                                color: '#fff', 
-                                weight: 2, 
-                                opacity: 1, 
-                                fillOpacity: 0.9 
-                            })
-                             .addTo(map)
-                             .bindPopup(`
-                                <div class="text-center">
-                                    <strong class="text-sm block mb-1">${lead.nome || 'Lead'}</strong>
-                                    <span class="text-xs text-slate-500">${lead.cidade || ''}/${lead.estado || ''}</span><br>
-                                    <span class="text-xs font-bold ${lead.etapa === 'Recebido (Fechado)' ? 'text-green-600' : (lead.etapa === 'Perdido/Sem Possibilidade' ? 'text-red-500' : 'text-orange-500')}">${lead.etapa}</span>
-                                </div>
-                             `);
-                        });
-                    }
+                    data.leads.forEach(lead => {
+                        let color = '#F97316'; 
+                        if (lead.etapa === 'Recebido (Fechado)') color = '#22C55E';
+                        else if (lead.etapa === 'Perdido/Sem Possibilidade' || lead.etapa === 'Sem Resposta / Perdido') color = '#EF4444';
+                        
+                        // Jitter de 1km para separar leads exatamente da mesma cidade
+                        const latJitter = cityLat + (Math.random() - 0.5) * 0.02;
+                        const lngJitter = cityLng + (Math.random() - 0.5) * 0.02;
+
+                        L.circleMarker([latJitter, lngJitter], { 
+                            radius: 8, 
+                            fillColor: color, 
+                            color: '#fff', 
+                            weight: 2, 
+                            opacity: 1, 
+                            fillOpacity: 0.9 
+                        })
+                         .addTo(map)
+                         .bindPopup(`
+                            <div class="text-center">
+                                <strong class="text-sm block mb-1">${lead.nome || 'Lead'}</strong>
+                                <span class="text-xs text-slate-500">${lead.cidade || ''}/${lead.estado || ''}</span><br>
+                                <span class="text-xs font-bold ${lead.etapa === 'Recebido (Fechado)' ? 'text-green-600' : (lead.etapa === 'Perdido/Sem Possibilidade' ? 'text-red-500' : 'text-orange-500')}">${lead.etapa}</span>
+                            </div>
+                         `);
+                    });
                 }
                 this.loadingMap = false;
             },
@@ -2270,13 +2313,21 @@
             // --- EXPORTAÇÃO ---
             getFilteredExportData() {
                 let filtered = this.leads;
-                if(this.exportData.date) {
+                
+                if (this.exportData.periodType === 'dia' && this.exportData.date) {
                     if (this.exportData.dateType === 'contato') {
                          filtered = filtered.filter(l => l.dataContato === this.exportData.date);
                     } else {
                          filtered = filtered.filter(l => (l.dataCriacao || '').slice(0,10) === this.exportData.date);
                     }
+                } else if (this.exportData.periodType === 'mes' && this.exportData.month) {
+                    if (this.exportData.dateType === 'contato') {
+                         filtered = filtered.filter(l => l.dataContato && l.dataContato.startsWith(this.exportData.month));
+                    } else {
+                         filtered = filtered.filter(l => l.dataCriacao && l.dataCriacao.startsWith(this.exportData.month));
+                    }
                 }
+
                 if(this.exportData.consultor) {
                     filtered = filtered.filter(l => l.consultor === this.exportData.consultor);
                 }
@@ -2284,7 +2335,7 @@
             },
             generateCSV() {
                 const data = this.getFilteredExportData();
-                if(data.length === 0) return this.showToast('Nenhum dado para exportar na data selecionada.', 'fa-circle-exclamation');
+                if(data.length === 0) return this.showToast('Nenhum dado para exportar no período selecionado.', 'fa-circle-exclamation');
 
                 let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
                 csvContent += "Nome,Telefone,Data_e_Hora_Contato,Fratura,Observacao\n"; 
@@ -2303,7 +2354,10 @@
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Relatorio_Revive_${this.exportData.date}.csv`);
+                
+                const periodStr = this.exportData.periodType === 'dia' ? this.exportData.date : this.exportData.month;
+                link.setAttribute("download", `Relatorio_Revive_${periodStr}.csv`);
+                
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -2312,6 +2366,10 @@
             generateWord() {
                 const data = this.getFilteredExportData();
                 if(data.length === 0) return this.showToast('Nenhum dado para exportar.', 'fa-circle-exclamation');
+
+                const periodStrFormatted = this.exportData.periodType === 'dia' 
+                    ? this.exportData.date.split('-').reverse().join('/') 
+                    : this.exportData.month.split('-').reverse().join('/');
 
                 let htmlContent = `
                     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -2324,8 +2382,8 @@
                         h1 { color: #2563EB; }
                     </style>
                     </head><body>
-                    <h1>Relatório Diário - Revive CRM</h1>
-                    <p><strong>Data Relatório:</strong> ${this.exportData.date.split('-').reverse().join('/')}</p>
+                    <h1>Relatório de Atendimentos - Revive CRM</h1>
+                    <p><strong>Período Selecionado:</strong> ${periodStrFormatted}</p>
                     <p><strong>Critério de Data:</strong> ${this.exportData.dateType === 'contato' ? 'Data de Contato (WhatsApp)' : 'Data de Cadastro (Sistema)'}</p>
                     <p><strong>Total de Registros:</strong> ${data.length}</p>
                     <table>
@@ -2360,7 +2418,10 @@
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = `Resumo_Revive_${this.exportData.date}.doc`;
+                
+                const periodStr = this.exportData.periodType === 'dia' ? this.exportData.date : this.exportData.month;
+                link.download = `Resumo_Revive_${periodStr}.doc`;
+                
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
